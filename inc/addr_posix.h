@@ -1,0 +1,34 @@
+#define _LEV_ADDR_POSIX_H
+
+#include <sys/types.h>
+#include <sys/socket.h>
+
+namespace lev {
+	// a posix socket address
+	class ISockAddr : public IAddr {
+	public:;
+		inline ISockAddr(short family) {
+			sa.sa_family = family;
+		};
+		inline ISockAddr(struct sockaddr *s) {
+			sa = *s;
+		};
+		inline IAddr *clone(Object *parent) {
+			IAddr *ia = new ISockAddr(&this->sa);
+			ia->setParent(parent);
+			return ia;
+		};
+		virtual void decode(string s);
+		struct sockaddr sa;
+	};
+
+	// an ipv4 address / port pair
+	class IPv4 : public ISockAddr {
+	public:;
+		IPv4(u32 ip, u16 port) : ISockAddr(AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in*)&sa;
+			sin->sin_addr.s_addr = ip;
+			sin->sin_port = htons(port);
+		};
+	};
+}

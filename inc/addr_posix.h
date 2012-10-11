@@ -15,7 +15,7 @@ namespace lev {
 		};
 		inline IAddr *clone(Object *parent) {
 			IAddr *ia = new ISockAddr(&this->sa);
-			ia->setParent(parent);
+			ia->attach(parent);
 			return ia;
 		};
 		virtual void decode(string s);

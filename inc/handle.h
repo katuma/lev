@@ -1,8 +1,6 @@
 #ifndef _LEV_HANDLE_H
 #define _LEV_HANDLE_H
 
-#include "poll.h"
-
 namespace lev {
 	// This class shields the socket-is-a-fd property, hopefully
 	// making our life easier on stupid systems where this invariant

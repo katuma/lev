@@ -5,6 +5,7 @@
 
 namespace lev {
 	class IOPoll;
+
 	class IIOPoll : public Object {
 	public:;
 		inline IIOPoll(Object *o) : Object(o) {};

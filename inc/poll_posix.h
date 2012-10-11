@@ -6,6 +6,8 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
+#include "sock.h"
+
 namespace lev {
 	// A posix-compliant, hybrid cross-platform select()/poll().
 	// select() uses hacked FD_SETSIZE. If kernel returns an error

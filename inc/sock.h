@@ -1,3 +1,5 @@
+#ifndef _LEV_SOCK_H
+#define _LEV_SOCK_H
 #include "addr.h"
 #include "handle.h"
 
@@ -20,7 +22,11 @@ namespace lev {
 		virtual ISocket *bind(string host, int port) = 0;
 		// mandatory
 		virtual ISocket *bind(IAddr *a) = 0;
+		// poll result for this socket
 		virtual void poll(IOPoll *, bool, bool);
+		void (*onReadEvent)(ISocket *);
+		void (*onWriteEvent)(ISocket *);
+		void (*onCloseEvent)(ISocket *);
 	};
 	
 	
@@ -38,3 +44,5 @@ namespace lev {
 		}
 	};
 }
+#endif
+

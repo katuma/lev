@@ -2,33 +2,34 @@
 #define _LEV_OBJ_H
 #include <stdint.h>
 
+#include "list.h"
+
 namespace lev {
 	typedef uint64_t u64;
 	typedef uint32_t u32;
 	typedef uint16_t u16;
 	// base class of acyclic Object graph.
-	class Object {
+	class Object : public List {
 	protected:;
 		// construct with parent
 		inline Object(Object *o) {
-			this->setParent(o);
+			linkto(o);
 		};
 		// unowned
-		inline Object() {
-			this->setParent(0);
-		}
-		class Object *prev, *next;
+		inline Object() : List() { };
 	public:;
-		// change parent of this object
-		inline Object *setParent(Object *parent) {
-			if (!parent)
-				this->next = this->prev = 0;
-			else {
-				this->next = parent->next;
-				this->prev = parent;
-			}
+		inline Object *detach()
+		{
+			unlink();
 			return this;
-		};
+		}
+		// change parent of this object
+		inline Object *attach(Object *parent) {
+			detach();
+			linkto(parent);
+			return this;
+		}
+
 		// automagically cast to covariant types
 		template <class T> inline operator T*() { return static_cast<T*>(this); };
 	};

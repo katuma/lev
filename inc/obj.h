@@ -3,11 +3,10 @@
 #include <stdint.h>
 
 #include "list.h"
+#include "types.h"
 
 namespace lev {
-	typedef uint64_t u64;
-	typedef uint32_t u32;
-	typedef uint16_t u16;
+
 	// base class of acyclic Object graph.
 	class Object : public List {
 	protected:;

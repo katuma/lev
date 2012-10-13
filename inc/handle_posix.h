@@ -94,6 +94,26 @@ namespace lev {
 				flags &= ~O_NONBLOCK;
 			return fcntl(fd, F_SETFL, flags)?errno:0;
 		};
+		
+		inline string *strerror(int errno) {
+			return new string(::strerror(errno));
+		}
+		
+		inline int send(u8 *buf, u32 *len) {
+			if ((int res = ::send(fd, buf, *len, 0)) < 0) {
+				return errno;
+			}
+			*len = res;
+			return 0;
+		}
+
+		inline int recv(u8 *buf, u32 *len) {
+			if ((int res = ::recv(fd, buf, *len, 0)) < 0) {
+				return errno;
+			}
+			*len = res;
+			return 0;
+		}
 	};
 }
 

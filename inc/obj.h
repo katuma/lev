@@ -12,27 +12,20 @@ namespace lev {
 	class Object : public List {
 	protected:;
 		// construct with parent
-		inline Object(Object *o) {
+		inline Object(Object *o) : List() {
 			linkto(o);
 		};
 		// unowned
 		inline Object() : List() { };
+		virtual bool on_delete(Object *) = 0;
 	public:;
-		inline Object *detach()
-		{
-			unlink();
-			return this;
-		}
-		// change parent of this object
-		inline Object *attach(Object *parent) {
-			detach();
-			linkto(parent);
-			return this;
-		}
+		List children;
+		~Object();
 
 		// automagically cast to covariant types
 		template <class T> inline operator T*() { return static_cast<T*>(this); };
 	};
+	~Object();
 };
 
 #endif

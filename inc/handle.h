@@ -18,6 +18,8 @@ namespace lev {
 		int socketpair(Handle *h, int d, int t, int p);
 		int bind(ISockAddr *addr);
 		int connect(ISockAddr *addr);
+		int recv(u8 *buf, u32 *len);
+		string *strerror(int errno);
 	};
 }
 

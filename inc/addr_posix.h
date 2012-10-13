@@ -13,9 +13,9 @@ namespace lev {
 		inline ISockAddr(struct sockaddr *s) {
 			sa = *s;
 		};
-		inline IAddr *clone(Object *parent) {
+		inline IAddr *clone() {
 			IAddr *ia = new ISockAddr(&this->sa);
-			ia->attach(parent);
+			ia->linkto(this);
 			return ia;
 		};
 		virtual void decode(string s);

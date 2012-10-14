@@ -14,9 +14,6 @@ namespace lev {
 	// other than EINTR & friends, we'll switch to poll.
 	class IOPoll : public IIOPoll {
 	private:;
-		// XXX benchmark if u64 is actually faster than u32 on amd64?
-		typedef unsigned long WORDTYPE;
-		const int WORDBITS = sizeof(WORDTYPE) * 8;
 		// poll() makes more sense after this (>4kb fdsets).
 		const int SELECT_CUTOFF = 16384;
 		// recompute pfds every 1ms
@@ -50,7 +47,7 @@ namespace lev {
 		};
 
 		inline short _calcevents(int fd) {
-			u32 events;
+			u32 events = 0;
 			if (rset[fd])
 				events = POLLIN;
 			if (wset[fd])
@@ -125,7 +122,7 @@ namespace lev {
 			
 			// fallback
 			if (errno != EINTR && errno != ETIMEDOUT && errno != EAGAIN) {
-				usepoll = true;
+				dirty = usepoll = true;
 				return poll(timeout);
 			}
 			return 0;
@@ -154,6 +151,8 @@ namespace lev {
 			sockmap[fd] = sock;
 			if (++fd > maxfd) {
 				maxfd = fd;
+				if (!usepoll && fd > SELECT_CUTOFF)
+					dirty = usepoll = true;
 				rset.resize(maxfd, false);
 				wset.resize(maxfd, false);
 				sockmap.reserve(maxfd);

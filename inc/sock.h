@@ -126,7 +126,7 @@ namespace lev {
 	template <class Base>
 	class TBufferedSocket : public Base {
 	protected:;
-		const int READ_CHUNK = 4096;
+		static const int READ_CHUNK = 4096;
 		Buffer input;
 		Buffer output;
 	public:;

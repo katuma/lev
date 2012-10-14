@@ -31,8 +31,8 @@ namespace lev {
 
 	// buffer for input and output.
 	class Buffer {
-		const int BUF_CHUNK = 4096;
-		const int BUF_COMPACT = 256*1024;
+		static const int BUF_CHUNK = 4096;
+		static const int BUF_COMPACT = 256*1024;
 	protected:;
 		u8 *buf;
 		u32 bufin;
@@ -206,7 +206,7 @@ namespace lev {
 	// simplified vector based on buffer
 	template <class T>
 	class Vector : Buffer {
-		const int sz = sizeof(T);
+		static const int sz = sizeof(T);
 	public:;
 		inline void clear() {
 			reset();
@@ -263,9 +263,9 @@ namespace lev {
 	class Vector<bool> {
 	public:;
 		inline Vector<bool>() : bitpos(0), buf(0) {};
-		const u32 bytes = sizeof(unsigned long);
-		const u32 bits = bytes*8;
-		const u32 mask = bits-1;
+		static const u32 bytes = sizeof(unsigned long);
+		static const u32 bits = bytes*8;
+		static const u32 mask = bits-1;
 
 		u32 bitpos;
 		unsigned long *buf;

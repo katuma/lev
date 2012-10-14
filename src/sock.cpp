@@ -1,5 +1,6 @@
 #include "sock.h"
 #include "poll.h"
+#include "buf.h"
 
 namespace lev {
 	
@@ -26,7 +27,7 @@ namespace lev {
 
 	// connect to an address
 	ISocket *InetSocket::connect(IAddr *a) {
-		assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
+		//assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
 		assert(dynamic_cast<ISockAddr*>(a));
 		ISockAddr *sa = (ISockAddr*)a;
 		if (h.connect(sa)) {
@@ -50,8 +51,7 @@ namespace lev {
 
 
 	// class TCPSocket
-
-	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, string **msg) {
+	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, String **msg) {
 		if (!*len) {
 			io->disable_write(this);
 			return 0;
@@ -63,16 +63,16 @@ namespace lev {
 		}
 		if (!*len)
 			err = ECONNRESET;
-		//if (err) *msg = h.strerror(err);
+		if (err) *msg = h.errnostr(err);
 		return err;
 	}
-	int _TCPSocket::recv(IOPoll *, u8 *packet, u32 *len, string **msg) {
+	int _TCPSocket::recv(IOPoll *, u8 *packet, u32 *len, String **msg) {
 		int err = h.recv(packet, len);
 		if (err == EWOULDBLOCK)
 			return 0;
 		if (!*len)
 			err = ECONNRESET;
-//		if (err) *msg = h.strerror(err);
+		if (err) *msg = h.errnostr(err);
 		return err;
 	}
 }

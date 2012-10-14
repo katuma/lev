@@ -24,7 +24,7 @@ namespace lev {
 	
 	class SockEvent : public List {
 	public:;
-		inline SockEvent(EventType et) : type(et), List() {};
+		inline SockEvent(EventType et) : List(), type(et) {};
 		EventType type;
 		EventCB *cb;
 		inline SockEvent *setcb(EventCB *c) {
@@ -86,10 +86,10 @@ namespace lev {
 		virtual void on_read(IOPoll *) = 0;
 		virtual void on_write(IOPoll *) = 0;
 		virtual void on_flush(IOPoll *) = 0;
-		virtual void on_error(IOPoll *, string *, int) = 0;
+		virtual void on_error(IOPoll *, String, int) = 0;
 		virtual bool on_close(Object *) = 0;
-		virtual int recv(IOPoll *, u8 *packet, u32 *len, string **msg) = 0;
-		virtual int send(IOPoll *, u8 *packet, u32 *len, string **msg) = 0;
+		virtual int recv(IOPoll *, u8 *packet, u32 *len, String **) = 0;
+		virtual int send(IOPoll *, u8 *packet, u32 *len, String **) = 0;
 		inline void setflag(SockFlags f) {
 			flags = f;
 		}
@@ -106,10 +106,10 @@ namespace lev {
 		ISocket *bind(IAddr *a);
 		ISocket *connect(IAddr *a);
 
-		int send(IOPoll *, Buffer *buf, u32 *len);
-		int recv(IOPoll *, Buffer *buf, u32 *len);
+//		int send(IOPoll *, Buffer *buf, u32 *len, String *msg);
+//		int recv(IOPoll *, Buffer *buf, u32 *len, String *msg);
 
-		void on_error(IOPoll *, string *, int);
+		void on_error(IOPoll *, String, int);
 		bool on_close(Object *);
 		bool on_delete(Object *parent);
 		~InetSocket();
@@ -119,8 +119,8 @@ namespace lev {
 	public:;
 		void on_data(IOPoll *);
 		void on_flush(IOPoll *);
-		int recv(IOPoll *, u8 *packet, u32 *len, string **msg);
-		int send(IOPoll *, u8 *packet, u32 *len, string **msg);
+		int recv(IOPoll *, u8 *packet, u32 *len, String **msg);
+		int send(IOPoll *, u8 *packet, u32 *len, String **msg);
 	};
 
 	template <class Base>
@@ -134,7 +134,7 @@ namespace lev {
 		using Base::on_data;
 		using Base::on_flush;
 		void on_read(IOPoll *io) {
-			string *s;
+			String s;
 			u32 len;
 			if (int err = recv(io, input.output(&len, READ_CHUNK), &len, &s))
 				return on_error(io, s, err);
@@ -142,7 +142,7 @@ namespace lev {
 		}
 		void on_write(IOPoll *io) {
 			u32 len;
-			string *s;
+			String s;
 			if (int err = send(io, output.input(&len), &len, &s))
 				return on_error(io, s, err);
 			if (output.empty())

@@ -38,12 +38,14 @@ namespace lev {
 			pfdlast = now;
 			pfds.clear();
 			for (int i = 0; i < maxfd; i++)
-				if (short events = _calcevents(i))
-					pfds.push_back({
+				if (short events = _calcevents(i)) {
+					struct pollfd pf = {
 						.fd = i,
 						.events = events,
 						.revents = 0
-					});
+					};
+					pfds.push_back(pf);
+				}
 			dirty = false;
 		};
 
@@ -164,6 +166,7 @@ namespace lev {
 			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
+			return this;
 		};
 
 

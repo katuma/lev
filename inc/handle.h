@@ -2,6 +2,7 @@
 #define _LEV_HANDLE_H
 
 #include <string>
+#include "buf.h"
 
 namespace lev {
 	// This class shields the socket-is-a-fd property, hopefully
@@ -22,7 +23,7 @@ namespace lev {
 		int connect(ISockAddr *addr);
 		int recv(u8 *buf, u32 *len);
 		int send(u8 *buf, u32 *len);
-		string *strerror(int errno);
+		String *errnostr(int);
 	};
 }
 

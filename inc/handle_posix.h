@@ -7,7 +7,8 @@
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <string.h>
+
+#include "buf.h"
 
 namespace lev {
 	// This class shields the socket-is-a-fd property, hopefully
@@ -98,13 +99,13 @@ namespace lev {
 			return fcntl(fd, F_SETFL, flags)?errno:0;
 		};
 		
-		inline string *strerror(int errno) {
-			return new string(::strerror(errno));
+		inline String *errnostr(int err) {
+			return new String(::strerror(err));
 		}
 		
 		inline int send(u8 *buf, u32 *len) {
 			int res;
-			if (res = ::send(fd, buf, *len, 0) < 0) {
+			if ((res = ::send(fd, buf, *len, 0)) < 0) {
 				return errno;
 			}
 			*len = res;
@@ -113,7 +114,7 @@ namespace lev {
 
 		inline int recv(u8 *buf, u32 *len) {
 			int res;
-			if (res = ::recv(fd, buf, *len, 0) < 0) {
+			if ((res = ::recv(fd, buf, *len, 0)) < 0) {
 				return errno;
 			}
 			*len = res;

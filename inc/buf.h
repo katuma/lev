@@ -31,45 +31,25 @@ namespace lev {
 
 	// buffer for input and output.
 	class Buffer {
-		static const int BUF_CHUNK = 4096;
-		static const int BUF_COMPACT = 256*1024;
+		static const unsigned BUF_CHUNK = 4096;
+		static const unsigned BUF_COMPACT = 256*1024;
 	protected:;
 		u8 *buf;
 		u32 bufin;
 		u32 bufout;
 		u32 buflen;
+
+		void _assign(void *val, u32 repeat, u32 sz, u32 pad);
+		void _reserve(u32 nsz);
+		void _check(u32 sz);
 	public:;
 		inline Buffer() : buf(0), bufin(0), bufout(0), buflen(0) { };
-
-
-		~Buffer() {
+		inline ~Buffer() {
 			if (buf) free(buf);
 		}
 
-		inline u32 capacity() {
-			return buflen;
-		}
-		
 		inline u32 space() {
 			return buflen - bufout;
-		}
-		
-		inline u32 compact() {
-			if (bufin)
-				memmove(buf, buf + bufin, bufout -= bufin);
-			bufin = 0;
-			return space();
-		}
-		
-		inline u8 *ensure(u32 plen)
-		{
-			// compact if the hole is gaping enough
-			if (bufin > BUF_COMPACT)
-				compact();
-
-			if (space() < plen)
-				realloc(buf, buflen = bufout + plen + BUF_CHUNK);
-			return output();
 		}
 		
 		// append buffer
@@ -84,12 +64,12 @@ namespace lev {
 		// get a pointer to buffer head, or null if no data to consume
 
 		// return how much is length for fetching
-		inline u32 length() {
+		inline u32 bytes() {
 			return bufout - bufin;
 		}
 		
 		inline bool empty() {
-			return !length();
+			return !bytes();
 		}
 
 		inline u8 *input() {
@@ -97,7 +77,7 @@ namespace lev {
 		}
 
 		inline u8 *input(u32 *len) {
-			*len = length();
+			*len = bytes();
 			return input();
 		}
 
@@ -126,123 +106,88 @@ namespace lev {
 
 		// consume 'len'
 		inline bool consume(u32 len) {
-			assert(length() >= len);
+			assert(bytes() >= len);
 			bufin += len;
 			return false;
 		}
 
-		void _reserve(u32 nsz);
-		void _check(u32 sz);
-
-/*
-		// fetch arbitrary structure
-		template <typename T>
-		inline bool fetch(T *out) {
-			if (sizeof(T) < length()) return true;
-			memcpy(out, input(), sizeof(T));
-			return consume(sizeof(T));
-		};
-
-		// fetch arbitrary integer of given endian
-		template <typename T>
-		inline bool fetch(T *out, bool e) {
-			if (sizeof(T) < length()) return true;
-			// convert from given endian to host endian
-			T in = *((T *)input());
-			*out = endian(in);
-			return consume(sizeof(T));
-		}
-
-		// specialize for types signalling explicit endian
-		inline bool fetch(u16le *out) { return fetch(out, false); }
-		//inline bool fetch(u16be *out) { return fetch(out, true); }
-		inline bool fetch(u32le *out) { return fetch(out, false); }
-		//inline bool fetch(u32be *out) { return fetch(out, true); }
-		inline bool fetch(u64le *out) { return fetch(out, false); }
-		//inline bool fetch(u64be *out) { return fetch(out, true); }
-		
-		// fetch terminated string and append it to output string
-		inline bool fetch(string *out, u8 term) {
-			u8 *p = input();
-			if (u8 *p2 = (u8*)memchr((void*)p, term, length())) {
-				out->append((const char*)p, p2 - p);
-				return consume(p2 - p);
-			}
-			return true;
-		}
-		
-		// fetch string of given length
-		inline bool fetch(string *out, u32 len) {
-			if (len < length()) return false;
-			out->append((const char *)input(), len);
-			return consume(len);
-		}
-
-		// put arbitrary structure
-		template <typename T>
-		inline void store(T *out) {
-			append((u8*)out, sizeof(T));
-		}
-		
-		// store arbitrary integer of given endian
-		template <typename T>
-		inline void store(T *in, bool e) {
-			ensure(sizeof(T));
-			// convert from given endian to host endian
-			T val = endian((T*)in, e);
-			store(&val);
-		}
-
-		// specialize for types signalling explicit endian
-		inline void store(u16le *in) { return store(in, false); }
-		//inline bool store(u16be *in) { return store(in, true); }
-		inline void store(u32le *in) { return store(in, false); }
-		//inline bool store(u32be *in) { return store(in, true); }
-		inline void store(u64le *in) { return store(in, false); }
-		//inline bool store(u64be *in) { return store(in, true); }*/
+		u32 compact();
+		u8 *ensure(u32 plen);
 	};
 
+	typedef char char_t;
 
 	// simplified vector based on buffer
-	template <class T>
-	class Vector : Buffer {
-		static const int sz = sizeof(T);
+	// optional zero-padding size as second argument
+	// destructors are NOT called
+	template <class T, unsigned pad = 0>
+	class Vector : public Buffer {
+		static const unsigned sz = sizeof(T);
 	public:;
+		inline Vector() : Buffer() {};
+
+		inline Vector(Vector &s) : Buffer() {
+			copy(s);
+		}
+
+		inline Vector(char_t *s) : Buffer() {
+			copy(s, ::strlen(s));
+		}
+
 		inline void clear() {
 			reset();
-			// XXX destructors
+			memset(buf, 0, pad);
 		}
-		
+
 		inline u32 size() {
-			return length()/sz;
+			return bytes()/sz;
 		}
-		
+
 		void reserve(u32 n) {
-			_reserve(n*sz);
+			_reserve(n*sz + pad);
 		}
 		
 		inline void resize(u32 n, T val) {
-			u32 nsz = n*sz;
-			if (length() >= nsz) {
-				// XXX destructors of trimmed members
-				bufout = bufin + nsz;
+			if (n > size()) {
+				bufout = bufin + n*sz;
+				memset(buf + bufout, 0, pad);
 				return;
 			}
-			_reserve(nsz);
-			// allocate new fields
-			while (length() < nsz)
-				push_back(val);
+			_assign(&val, n-size(), sz, pad);
 		}
 		
-		inline Vector<T>& operator=(const Vector<T>&) {
-			assert(0 && "not yet");
+		inline void assign(u32 repeat, T& val) {
+			bufin = bufout = 0;
+			_assign(&val, repeat, sz, pad);
 		}
 
-		inline void push_back(T val) {
+		inline void copy(T *src, u32 len) {
+			len += pad;
+			if (len > buflen)
+				_reserve(len);
+			memcpy(buf, src, len);
+		}
+
+		inline void copy(Vector<T>&src) {
+			copy(&src, src.bytes());
+		}
+
+		inline Vector<T>& operator=(const Vector<T>&src) {
+			copy(src);
+		}
+
+		inline void push_back(T& val) {
 			if (space() < sz)
-				_check(sz);
+				_check(sz * 4); // cache for 4 elements
 			at(size()) = val;
 			bufout += sz;
+		}
+
+		inline T pop_back() {
+			bufout -= sz;
+			T v = at(size());
+			memset(&at(size()), 0, pad);
+			return v;
 		}
 		
 		inline T& at(u32 n) {
@@ -252,11 +197,26 @@ namespace lev {
 		inline T& front() {
 			return at(0);
 		}
+		
+		inline T& end() {
+			return at(size());
+		}
 
+		// all index operations shall prevent copies
 		inline T& operator[](u32 idx) {
 			return at(idx);
 		}
+
+		// when asked for pointer, return one
+		inline operator T*() {
+			return (T*) (buf + bufin);
+		};
 	};
+
+
+
+	// strings are, in fact, vectors, padding with single 0
+	typedef Vector<char_t, sizeof(char_t)> String;
 
 	// boolean is somewhat special.
 	template<>
@@ -307,8 +267,10 @@ namespace lev {
 		}
 
 		Vector<bool>& operator=(Vector<bool>&);
-
 	};
+
+
+
 }
 
 #endif

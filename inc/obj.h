@@ -16,15 +16,20 @@ namespace lev {
 		};
 		// unowned
 		inline Object() : List() { };
-		virtual bool on_delete(Object *) = 0;
+		virtual bool on_delete(Object *);
 	public:;
 		List children;
 		~Object();
+		template <typename UserType>
+		inline operator UserType*() {
+			return static_cast<UserType*>(this);
+		};
 
-		// automagically cast to covariant types
-		template <class T> inline operator T*() { return static_cast<T*>(this); };
+		template <typename FromType, typename ToType>
+		inline ToType& operator=(const FromType &src) {
+			return static_cast<ToType&>(src);
+		};
 	};
-	~Object();
 };
 
 #endif

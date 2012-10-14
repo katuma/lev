@@ -18,7 +18,7 @@ namespace lev {
 			ia->linkto(this);
 			return ia;
 		};
-		virtual void decode(string s);
+		void decode(string s);
 		struct sockaddr sa;
 	};
 

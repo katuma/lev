@@ -1,7 +1,11 @@
 #ifndef _LEV_SOCK_H
 #define _LEV_SOCK_H
+
+#include <functional>
 #include "addr.h"
 #include "handle.h"
+#include "buf.h"
+
 
 namespace lev {
 	//
@@ -9,6 +13,7 @@ namespace lev {
 	// Actual sockets
 	//
 	class IOPoll;
+	class ISocket;
 	
 	enum EventType {
 		FlushEvent,
@@ -19,26 +24,27 @@ namespace lev {
 	
 	class SockEvent : public List {
 	public:;
-		inline SockEvent(EventType et) : t(et), List();
+		inline SockEvent(EventType et) : type(et), List() {};
 		EventType type;
-		EventCB cb;
-		inline SockEvent *setcb(EventCB c) {
+		EventCB *cb;
+		inline SockEvent *setcb(EventCB *c) {
 			cb = c;
 			return this;
 		}
-	}
+	};
 	
 	class EventDispatcher {
 	public:;
 		List handlers; // list of event handlers
-		SockEvent *add_handler(EventType et, EventCB cb) {
+		SockEvent *add_handler(EventType et, EventCB *cb) {
 			SockEvent *e = new SockEvent(et);
 			e->linkto(&this->handlers);
-			return e->setcb((cb));
-		}		
-	}
+			return e->setcb(cb);
+		}
+	};
 
 	enum SockFlags {
+		NONE = 0,
 		ERROR = 1, // an error occured, other flags should be cleared
 		CANREAD = 2, // received via ->poll, ->run can read input data
 		PAUSED = 4, // ->pause() was called
@@ -64,7 +70,7 @@ namespace lev {
 	class ISocket : public Object {
 
 	protected:;
-		inline ISocket() : flags(0) {};
+		inline ISocket() : flags(NONE) {};
 
 		SockFlags flags;
 	public:;
@@ -73,51 +79,78 @@ namespace lev {
 		virtual ISocket *bind(IAddr *a) = 0;
 		virtual ISocket *connect(IAddr *a) = 0;
 
-		virtual void poll(IOLoop *io, bool r, bool w);
+		virtual void poll(IOPoll *io, bool r, bool w);
 		
 		// event handlers. switch to virtual only if needed.
-		virtual void on_data();
-		virtual void on_read(IOPoll *);
-		virtual void on_write(IOPoll *);
-		virtual void on_flush(IOPoll *);
-		virtual void on_error(string *, int errno);
-		virtual void on_close();
-		virtual int recv(IOPoll *, u8 *packet, u32 *len, string **msg);
-		virtual int send(IOPoll *, u8 *packet, u32 *len, string **msg);
+		virtual void on_data(IOPoll *) = 0;
+		virtual void on_read(IOPoll *) = 0;
+		virtual void on_write(IOPoll *) = 0;
+		virtual void on_flush(IOPoll *) = 0;
+		virtual void on_error(IOPoll *, string *, int) = 0;
+		virtual bool on_close(Object *) = 0;
+		virtual int recv(IOPoll *, u8 *packet, u32 *len, string **msg) = 0;
+		virtual int send(IOPoll *, u8 *packet, u32 *len, string **msg) = 0;
+		inline void setflag(SockFlags f) {
+			flags = f;
+		}
+		inline void addflag(SockFlags f) {
+			flags = (SockFlags)(f | flags);
+		}
 	};
 
-	class InetSocket : public virtual ISocket {
+	class InetSocket : public ISocket {
 	protected:;
-		Handle h;
 	public:;
+		Handle h;
 		// bind address
 		ISocket *bind(IAddr *a);
 		ISocket *connect(IAddr *a);
 
 		int send(IOPoll *, Buffer *buf, u32 *len);
 		int recv(IOPoll *, Buffer *buf, u32 *len);
-		void on_error(string *, int errno);
-		void on_close();
-		void ~InetSocket();
-	};
 
-	class IBufferedSocket : public virtual ISocket {
-	protected:;
-		const int READ_CHUNK = 4096;
-		Buffer input;
-		Buffer output;
-	public:;
-		void on_read(IOPoll *);
-		void on_write(IOPoll *);
-	}
+		void on_error(IOPoll *, string *, int);
+		bool on_close(Object *);
+		bool on_delete(Object *parent);
+		~InetSocket();
+	};
 	
-	class TCPSocket : public InetSocket, public IBufferedSocket {
+	class _TCPSocket : public InetSocket {
 	public:;
 		void on_data(IOPoll *);
 		void on_flush(IOPoll *);
 		int recv(IOPoll *, u8 *packet, u32 *len, string **msg);
 		int send(IOPoll *, u8 *packet, u32 *len, string **msg);
-	}
+	};
+
+	template <class Base>
+	class TBufferedSocket : public Base {
+	protected:;
+		const int READ_CHUNK = 4096;
+		Buffer input;
+		Buffer output;
+	public:;
+		using Base::on_error;
+		using Base::on_data;
+		using Base::on_flush;
+		void on_read(IOPoll *io) {
+			string *s;
+			u32 len;
+			if (int err = recv(io, input.output(&len, READ_CHUNK), &len, &s))
+				return on_error(io, s, err);
+			return on_data(io);	
+		}
+		void on_write(IOPoll *io) {
+			u32 len;
+			string *s;
+			if (int err = send(io, output.input(&len), &len, &s))
+				return on_error(io, s, err);
+			if (output.empty())
+				on_flush(io);			
+		}
+	};
+	
+	typedef TBufferedSocket<_TCPSocket> TCPSocket;
 }
 #endif
 

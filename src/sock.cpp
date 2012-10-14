@@ -1,35 +1,13 @@
 #include "sock.h"
+#include "poll.h"
 
 namespace lev {
 	
 	// class ISocket
 
-	void ISocket::poll(IOLoop *io, bool r, bool w) {
+	void ISocket::poll(IOPoll *io, bool r, bool w) {
 		if (r) on_read(io);
 		if (w) on_write(io);
-	}
-
-	// class IBufferedSocket
-	
-	// descriptor ready for reading, read into the buffer
-	// and call on_data() if there are new bytes
-	void IBufferedSocket::on_read(IOPoll *io) {
-		string *s;
-		u32 len;
-		if (int err = recv(input.output(READ_CHUNK, &len), &len, &s))
-			return on_error(io, s, err);
-		return on_data(io);
-	}
-
-	// descriptor ready for writing
-	// and call on_flush() if the write went through
-	void IBufferedSocket::on_write(IOPoll *io) {
-		u32 len;
-		string *s;
-		if (int err = send(output.input(&len), &len, &s))
-			return on_error(io, s, err);
-		if (output.empty())
-			on_flush(io);
 	}
 
 
@@ -41,8 +19,8 @@ namespace lev {
 		assert(dynamic_cast<ISockAddr*>(a));
 		ISockAddr *sa = (ISockAddr*)a;
 		if (h.bind(sa))
-			flags = ERROR | errno;
-		else flags |= BOUND;
+			setflag(ERROR);
+		else addflag(BOUND);
 		return this;
 	}
 
@@ -53,19 +31,19 @@ namespace lev {
 		ISockAddr *sa = (ISockAddr*)a;
 		if (h.connect(sa)) {
 			if (errno == EINPROGRESS) {
-				flags |= CONNECTING;
+				addflag(CONNECTING);
 			}
+			setflag(ERROR);
 			flags = ERROR;
-			flags |= errno;
-		} else flags |= CONNECTING2;
+		} else addflag(CONNECTING2);
 		return this;
 	}
 
 	// socket is being destroyed
-	void InetSocket::on_delete(Object *parent) {
+	bool InetSocket::on_delete(Object *parent) {
 		if (on_close(parent)) {
 			h.close();
-			return ISocket::on_delete(this, parent);
+			return ISocket::on_delete(parent);
 		}
 		return false;
 	}
@@ -73,28 +51,28 @@ namespace lev {
 
 	// class TCPSocket
 
-	int TCPSocket::send(IOPoll *, u8 *packet, u32 *len, string **msg) {
+	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, string **msg) {
 		if (!*len) {
-			h.disable_write();
+			io->disable_write(this);
 			return 0;
 		}
-		int err = h.send(packet, &len);
+		int err = h.send(packet, len);
 		if (err == EWOULDBLOCK) {
-			h.enable_write();
+			io->enable_write(this);
 			return 0;
 		}
 		if (!*len)
 			err = ECONNRESET;
-		if (err) *msg = h.strerror(err);
+		//if (err) *msg = h.strerror(err);
 		return err;
 	}
-	int TCPSocket::recv(IOPoll *, u8 *packet, u32 *len, string **msg) {
-		int err = h.recv(packet, &len);
+	int _TCPSocket::recv(IOPoll *, u8 *packet, u32 *len, string **msg) {
+		int err = h.recv(packet, len);
 		if (err == EWOULDBLOCK)
 			return 0;
 		if (!*len)
 			err = ECONNRESET;
-		if (err) *msg = h.strerror(err);
+//		if (err) *msg = h.strerror(err);
 		return err;
 	}
 }

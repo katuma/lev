@@ -1,12 +1,12 @@
 #define _LEV_POLL_POSIX_H
 
-#include <vector>
-#include <unordered_map>
+//#include <unordered_map>
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/time.h>
 
 #include "sock.h"
+
 
 namespace lev {
 	// A posix-compliant, hybrid cross-platform select()/poll().
@@ -28,9 +28,10 @@ namespace lev {
 		int maxfd;
 		u64 pfdlast;
 
-		vector<WORDTYPE> rset, wset, rres, wres;
-		vector<struct pollfd> pfds;
-		unordered_map<int, ISocket *> sockmap;
+		Vector<bool> rset, wset, rres, wres;
+		Vector<struct pollfd> pfds;
+		//unordered_map<int, ISocket *> sockmap;
+		Vector<ISocket *> sockmap;
 		
 		inline void _recompute_pfds() {
 			if (now < (pfdlast+PFDS_THROTTLE)) return;
@@ -47,12 +48,10 @@ namespace lev {
 		};
 
 		inline short _calcevents(int fd) {
-			u32 word = fd / WORDBITS;
-			u32 bit = 1 << (fd % WORDBITS);
-			short events = 0;
-			if (rset[word] & bit)
+			u32 events;
+			if (rset[fd])
 				events = POLLIN;
-			if (wset[word] & bit)
+			if (wset[fd])
 				events |= POLLOUT;
 			if (!events) return 0;
 			return events | POLLERR | POLLHUP;
@@ -60,21 +59,15 @@ namespace lev {
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
-		inline IOPoll *_enable(WORDTYPE *set, int fd) {
-			u32 word = fd / WORDBITS;
-			u32 bit = 1 << (fd % WORDBITS);
-			if (set[word] & bit == 0) {
-				set[word] |= bit;
-				dirty = true;
-			}
+		inline IOPoll *_enable(Vector<bool> &set, int fd) {
+			if (!set[fd])
+				set.setbit(fd, dirty = true);
 			return this;
 		};
 
-		inline IOPoll *_disable(WORDTYPE *set, int fd) {
-			u32 word = fd / WORDBITS;
-			u32 bit = 1 << (fd % WORDBITS);
-			if (set[word] & bit) {
-				set[word] &= ~bit;
+		inline IOPoll *_disable(Vector<bool> &set, int fd) {
+			if (!set[fd]) {
+				set.setbit(fd, false);
 				dirty = true;
 			}
 			return this;
@@ -84,7 +77,7 @@ namespace lev {
 			if (dirty)
 				_recompute_pfds();
 			int n = pfds.size();
-			if (int res = ::poll(&pfds[0], n, timeout)>=0) {
+			if (int res = ::poll(&pfds.front(), n, timeout)>=0) {
 				_getnow();
 				for (int i = 0; res > 0 && i < n; i++) {
 					struct pollfd *pfd = &pfds[i];
@@ -115,13 +108,11 @@ namespace lev {
 			rres = rset;
 			wres = wset;
 
-			if ((res = ::select(maxfd, (fd_set*)&rres[0], (fd_set*)&wres[0], 0, &tv))>=0) {
+			if ((res = ::select(maxfd, (fd_set*)rres.buf, (fd_set*)wres.buf, 0, &tv))>=0) {
 				_getnow();
 				for (int fd = 0; res > 0 && fd < maxfd; fd++) {
-					u32 word = fd / WORDBITS;
-					u32 bit = 1 << (fd % WORDBITS);
-					bool r = rres[word] & bit;
-					bool w = wres[word] & bit;
+					bool r = rres[fd];
+					bool w = wres[fd];
 					if (r|w) {
 						res--;
 						sockmap[fd]->poll(this, r, w);
@@ -143,6 +134,9 @@ namespace lev {
 			gettimeofday(&tv, 0);
 			now = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 		};
+		inline int getfd(ISocket *sock) {
+			return ((InetSocket *) sock)->h.fd;
+		}
 	public:;
 		u64 now;
 		inline IOPoll(Object *o) :
@@ -153,20 +147,21 @@ namespace lev {
 
 		// register fd
 		inline IOPoll *add(ISocket *sock) {
-			int fd = sock->h.fd;
+			int fd = getfd(sock);
 			assert(fd>=0);
 			sockmap[fd] = sock;
 			if (++fd > maxfd) {
 				maxfd = fd;
-				rset.resize((maxfd+WORDBITS-1)/WORDBITS, 0);
-				wset.resize((maxfd+WORDBITS-1)/WORDBITS, 0);
+				rset.resize(maxfd, false);
+				wset.resize(maxfd, false);
+				sockmap.reserve(maxfd);
 			}
 			return this;
 		};
 
 
 		inline IOPoll *del(ISocket *sock) {
-			sockmap.erase(sock->h.fd);
+			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
 		};
@@ -175,19 +170,19 @@ namespace lev {
 		// NOTE: these are not a single monolithic function with boolean
 		// flags because that would just trash the branch predictor.
 		inline IOPoll *enable_read(ISocket *s) {
-			return _enable(&rset[0], s->h.fd);
+			return _enable(rset, getfd(s));
 		};
 
 		inline IOPoll *disable_read(ISocket *s) {
-			return _disable(&rset[0], s->h.fd);
+			return _disable(rset, getfd(s));
 		};
 
 		inline IOPoll *enable_write(ISocket *s) {
-			return _enable(&wset[0], s->h.fd);
+			return _enable(wset, getfd(s));
 		};
 
 		inline IOPoll *disable_write(ISocket *s) {
-			return _disable(&wset[0], s->h.fd);
+			return _disable(wset, getfd(s));
 		};
 		
 		u64 poll(int timeout);

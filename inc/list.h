@@ -5,9 +5,8 @@
 
 namespace lev {
 	class List {
-	protected:;
-		List *prev, *next;		
 	public:;
+		List *prev, *next;		
 		inline List() : prev(this), next(this) {};
 		inline List(List *parent) : prev(this), next(this) { linkto(parent); };
 		// link `this` object into `parent`
@@ -27,6 +26,17 @@ namespace lev {
 			return this;
 		}
 		virtual ~List();
+		// automagically cast to covariant types
+		template <typename UserType>
+		inline operator UserType*() {
+			return static_cast<UserType*>(this);
+		};
+
+		template <typename FromType, typename ToType>
+//		template <typename ToType>
+		inline ToType* operator=(const FromType *src) {
+			return static_cast<ToType*>(src);
+		};
 	};
 }
 

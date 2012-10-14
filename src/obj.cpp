@@ -8,8 +8,9 @@ namespace lev {
 		return true;
 	}
 	Object::~Object() {
+		Object *c;
 		// delete children until list is empty
-		while ((Object *c = children.next) != this)
+		while ((c = (Object*)children.next) != this)
 			if (c->on_delete(this))
 				delete c;
 			else assert(children.next != c);

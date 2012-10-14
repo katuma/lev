@@ -1,6 +1,8 @@
 #ifndef _LEV_HANDLE_H
 #define _LEV_HANDLE_H
 
+#include <string>
+
 namespace lev {
 	// This class shields the socket-is-a-fd property, hopefully
 	// making our life easier on stupid systems where this invariant
@@ -19,6 +21,7 @@ namespace lev {
 		int bind(ISockAddr *addr);
 		int connect(ISockAddr *addr);
 		int recv(u8 *buf, u32 *len);
+		int send(u8 *buf, u32 *len);
 		string *strerror(int errno);
 	};
 }

@@ -5,6 +5,9 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
 
 namespace lev {
 	// This class shields the socket-is-a-fd property, hopefully
@@ -100,7 +103,8 @@ namespace lev {
 		}
 		
 		inline int send(u8 *buf, u32 *len) {
-			if ((int res = ::send(fd, buf, *len, 0)) < 0) {
+			int res;
+			if (res = ::send(fd, buf, *len, 0) < 0) {
 				return errno;
 			}
 			*len = res;
@@ -108,7 +112,8 @@ namespace lev {
 		}
 
 		inline int recv(u8 *buf, u32 *len) {
-			if ((int res = ::recv(fd, buf, *len, 0)) < 0) {
+			int res;
+			if (res = ::recv(fd, buf, *len, 0) < 0) {
 				return errno;
 			}
 			*len = res;

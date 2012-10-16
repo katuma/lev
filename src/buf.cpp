@@ -27,7 +27,7 @@ namespace lev {
 
 	void Buffer::_assign(void *val, u32 repeat, u32 sz, u32 pad) {
 		_reserve(repeat * sz + pad);
-		while (--repeat) {
+		while (repeat--) {
 			memcpy(buf + bufout, val, sz);
 			bufout += sz;
 		}

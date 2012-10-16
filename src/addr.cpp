@@ -2,6 +2,6 @@
 #include "buf.h"
 
 namespace lev {
-	void ISockAddr::decode(String *s) {
+	void ISockAddr::decode(const String &s) {
 	}
 }

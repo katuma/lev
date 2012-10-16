@@ -50,10 +50,10 @@ namespace lev {
 
 		inline u32 space() {
 			return buflen - bufout;
-		}
+		};
 		
 		// append buffer
-		inline void append(u8 *p, u32 plen) {
+		inline void append(const u8 *p, u32 plen) {
 			ensure(plen);
 			assert(space() >= plen);
 			// write either at the end or wraparound
@@ -90,7 +90,7 @@ namespace lev {
 			return output();
 		}
 
-		inline u8 *output(u32 *len, u32 en) {
+		inline u8 *output(u32 *len, const u32 en) {
 			ensure(en);
 			return output(len);
 		}
@@ -161,19 +161,28 @@ namespace lev {
 			_assign(&val, repeat, sz, pad);
 		}
 
-		inline void copy(T *src, u32 len) {
-			len += pad;
-			if (len > buflen)
-				_reserve(len);
-			memcpy(buf, src, len);
+		inline void copy(const T *src, u32 len) {
+			bufout = len * sz;
+			bufin = 0;
+			_reserve(bufout + pad);
+			memcpy(buf, src, bufout + pad);
+			memset(buf + bufout, 0, pad);
 		}
 
-		inline void copy(Vector<T>&src) {
+		inline void copy(const Vector<T>&src) {
 			copy(&src, src.bytes());
 		}
 
 		inline Vector<T>& operator=(const Vector<T>&src) {
 			copy(src);
+			return src; // what about this?
+		}
+
+		// specialized for strings
+//		inline Vector<char_t>& 
+		inline const char_t *operator=(const char_t *src) {
+			copy(src, ::strlen(src));
+			return src;
 		}
 
 		inline void push_back(T& val) {

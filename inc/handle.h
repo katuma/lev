@@ -16,14 +16,14 @@ namespace lev {
 	struct IHandle {
 		int close();
 		int closesocket();
-		int socket(int domain, int type, int proto);
+		int socket(const int domain, const int type, const int proto);
 		int pipe(Handle *h);
-		int socketpair(Handle *h, int d, int t, int p);
+		int socketpair(Handle *h, const int d, const int t, const int p);
 		int bind(ISockAddr *addr);
-		int connect(ISockAddr *addr);
+		int connect(ISockAddr &addr);
 		int recv(u8 *buf, u32 *len);
 		int send(u8 *buf, u32 *len);
-		String *errnostr(int);
+		void errnostr(const int, String *s);
 	};
 }
 

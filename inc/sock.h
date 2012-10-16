@@ -76,8 +76,8 @@ namespace lev {
 	public:;
 		virtual ~ISocket();
 
-		virtual ISocket *bind(IAddr *a) = 0;
-		virtual ISocket *connect(IAddr *a) = 0;
+		virtual ISocket *bind(IAddr *) = 0;
+		virtual ISocket *connect(IAddr &) = 0;
 
 		virtual void poll(IOPoll *io, bool r, bool w);
 		
@@ -86,14 +86,14 @@ namespace lev {
 		virtual void on_read(IOPoll *) = 0;
 		virtual void on_write(IOPoll *) = 0;
 		virtual void on_flush(IOPoll *) = 0;
-		virtual void on_error(IOPoll *, String, int) = 0;
+		virtual void on_error(IOPoll *, String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
-		virtual int recv(IOPoll *, u8 *packet, u32 *len, String **) = 0;
-		virtual int send(IOPoll *, u8 *packet, u32 *len, String **) = 0;
-		inline void setflag(SockFlags f) {
+		virtual int recv(IOPoll *, u8 *, u32 *, String &) = 0;
+		virtual int send(IOPoll *, u8 *, u32 *, String &) = 0;
+		inline void setflag(const SockFlags f) {
 			flags = f;
 		}
-		inline void addflag(SockFlags f) {
+		inline void addflag(const SockFlags f) {
 			flags = (SockFlags)(f | flags);
 		}
 	};
@@ -104,14 +104,19 @@ namespace lev {
 		Handle h;
 		// bind address
 		ISocket *bind(IAddr *a);
-		ISocket *connect(IAddr *a);
+		ISocket *connect(IAddr &a);
+		//using ISocket::bind;
+		using ISocket::connect;
 
 //		int send(IOPoll *, Buffer *buf, u32 *len, String *msg);
 //		int recv(IOPoll *, Buffer *buf, u32 *len, String *msg);
 
-		void on_error(IOPoll *, String, int);
+		void on_error(IOPoll *, String &, const int);
 		bool on_close(Object *);
-		bool on_delete(Object *parent);
+		bool on_delete(Object *);
+//		using ISocket::on_error;
+//		using ISocket::on_close;
+//		using ISocket::on_delete;
 		~InetSocket();
 	};
 	
@@ -119,8 +124,12 @@ namespace lev {
 	public:;
 		void on_data(IOPoll *);
 		void on_flush(IOPoll *);
-		int recv(IOPoll *, u8 *packet, u32 *len, String **msg);
-		int send(IOPoll *, u8 *packet, u32 *len, String **msg);
+//		using ISocket::on_data;
+//		using ISocket::on_flush;
+//		using ISocket::recv;
+//		using ISocket::send;
+		int recv(IOPoll *, u8 *, u32 *, String &);
+		int send(IOPoll *, u8 *, u32 *, String &);
 	};
 
 	template <class Base>

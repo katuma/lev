@@ -46,7 +46,7 @@ namespace lev {
 			dirty = false;
 		};
 
-		inline short _calcevents(int fd) {
+		inline short _calcevents(const int fd) {
 			u32 events = 0;
 			if (rset[fd])
 				events = POLLIN;
@@ -58,13 +58,13 @@ namespace lev {
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
-		inline IOPoll *_enable(Vector<bool> &set, int fd) {
+		inline IOPoll *_enable(Vector<bool> &set, const int fd) {
 			if (!set[fd])
 				set.setbit(fd, dirty = true);
 			return this;
 		};
 
-		inline IOPoll *_disable(Vector<bool> &set, int fd) {
+		inline IOPoll *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setbit(fd, false);
 				dirty = true;
@@ -72,7 +72,7 @@ namespace lev {
 			return this;
 		};
 
-		inline u64 _poll_poll(int timeout) {
+		inline u64 _poll_poll(const int timeout) {
 			if (dirty)
 				_recompute_pfds();
 			int n = pfds.size();
@@ -88,7 +88,7 @@ namespace lev {
 					bool w = pfd->revents & (POLLOUT|POLLERR|POLLHUP|POLLNVAL);
 
 					if (r|w)
-						sockmap[pfd->fd]->poll(this, r, w);
+						sockmap[pfd->fd]->poll(*this, r, w);
 				}
 				return now;
 			}
@@ -96,7 +96,7 @@ namespace lev {
 		};
 		// poll for fds, runs callbacks, returns current timestamp.
 		// timeout is in milliseconds.
-		inline u64 _poll_select(int timeout) {
+		inline u64 _poll_select(const int timeout) {
 			int res;
 			
 			struct timeval tv;

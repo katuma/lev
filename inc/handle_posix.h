@@ -41,7 +41,7 @@ namespace lev {
 			return close();
 		};
 		
-		inline int socket(int domain, int type, int proto) {
+		inline int socket(const int domain, const int type, const int proto) {
 			assert(fd<0);
 			fd = ::socket(domain, type, proto);
 			return fd<0?errno:0;
@@ -62,7 +62,7 @@ namespace lev {
 			return 0;
 		};
 		
-		inline int socketpair(Handle *h, int d, int t, int p) {
+		inline int socketpair(Handle *h, const int d, const int t, const int p) {
 			assert(fd<0);
 			assert(h->fd<0);
 			int f[2];
@@ -87,7 +87,7 @@ namespace lev {
 		};
 
 
-		inline int setblocking(bool block) {
+		inline int setblocking(const bool block) {
 			assert(fd>=0);
 			int flags = ::fcntl(fd, F_GETFL, 0);
 			if (flags<0)
@@ -99,8 +99,8 @@ namespace lev {
 			return fcntl(fd, F_SETFL, flags)?errno:0;
 		};
 		
-		inline String *errnostr(int err) {
-			return new String(::strerror(err));
+		inline void errnostr(const int err, String &str) {
+			str = ::strerror(err);
 		}
 		
 		inline int send(u8 *buf, u32 *len) {

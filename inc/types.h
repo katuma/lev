@@ -15,6 +15,9 @@ namespace lev {
 	typedef uint16_t u16be;
 	
 	typedef uint8_t u8;
+	
+	typedef unsigned int uint;
+	typedef unsigned long ulong;
 }
 
 #endif

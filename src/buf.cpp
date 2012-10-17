@@ -1,44 +1,52 @@
 #include "buf.h"
 
 namespace lev {
-	u32 Buffer::compact() {
-		if (bufin)
-			memmove(buf, buf + bufin, bufout -= bufin);
-		bufin = 0;
-		return space();
-	}
+	
 
-	u8 *Buffer::ensure(u32 plen) {
+
+	u8 *Buffer::ensure(uint plen) {
 		// compact if the hole is gaping enough
-		if (bufin > BUF_COMPACT)
+		if (bufhead > BUF_COMPACT)
 			compact();
 
-		if (space() < plen)
-			buf = (u8*) realloc(buf, buflen = bufout + plen + BUF_CHUNK);
-		return output();
-	}
-	
-	void Buffer::_reserve(u32 nsz) {
-		if (buflen >= nsz) return;
-		compact();
-		if (buflen >= nsz) return;
-		buf = (u8*)realloc(buf, buflen = nsz);
+		if (avail() < plen)
+			_ensure(plen, 1);
+		return tail();
 	}
 
-	void Buffer::_assign(void *val, u32 repeat, u32 sz, u32 pad) {
-		_reserve(repeat * sz + pad);
+
+	// vector stuff
+	void VectorBase::_reserve(uint nsz) {
+		uint old = getsize();
+		if (old >= nsz) return;
+		p = realloc(p, setsize(nsz));
+		//memset(buf + old, 0, nsz - old);
+	}
+	
+	u32 VectorBase::_ensure(uint nelm, uint sz) {
+		_reserve((pos+nelm) * sz);
+		return nelm * sz;
+	}
+
+	// insert is seldom used, so it's rather generalized
+	// do NOT use for bools
+	void VectorBase::_insert(uint into, void *val, uint repeat, uint sz, uint pad) {
+		// reserve enough space
+		_reserve((pos + repeat + pad) * sz);
+		// shuffle the data around
+		u8 *ptr = ((u8*)p)+(into*sz);
+		uint tomove = pos - into;
+		pos += repeat;
+		memmove(ptr + repeat*sz, ptr, tomove);
+		// fill, XXX val might be an iterator in the future
 		while (repeat--) {
-			memcpy(buf + bufout, val, sz);
-			bufout += sz;
+			memcpy(ptr, val, sz);
+			ptr += sz;
 		}
-		memset(buf + bufout, 0, pad);
+		if (tomove) memset(ptr, 0, pad * sz);
 	}
-	
-	void Buffer::_check(u32 sz) {
-		if (compact() < sz)
-			buf = (u8*)realloc(buf, buflen = buflen + sz);			
-	}
-	
+
+	/*
 	void Vector<bool>::resize(u32 n, bool val) {
 		if (n < bitpos) {
 			bitpos = n;
@@ -66,5 +74,5 @@ namespace lev {
 		reserve(src.size());
 		memcpy(buf, src.buf, nwords(src.size() * bytes));
 		return src;
-	}
+	}*/
 }

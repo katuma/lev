@@ -60,13 +60,13 @@ namespace lev {
 		// happens a lot, hence the heavy hackery.
 		inline IOPoll *_enable(Vector<bool> &set, const int fd) {
 			if (!set[fd])
-				set.setbit(fd, dirty = true);
+				set.setat(fd, dirty = true);
 			return this;
 		};
 
 		inline IOPoll *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
-				set.setbit(fd, false);
+				set.setat(fd, false);
 				dirty = true;
 			}
 			return this;
@@ -107,7 +107,7 @@ namespace lev {
 			rres = rset;
 			wres = wset;
 
-			if ((res = ::select(maxfd, (fd_set*)rres.buf, (fd_set*)wres.buf, 0, &tv))>=0) {
+			if ((res = ::select(maxfd, (fd_set*)rres.p, (fd_set*)wres.p, 0, &tv))>=0) {
 				_getnow();
 				for (int fd = 0; res > 0 && fd < maxfd; fd++) {
 					bool r = rres[fd];

@@ -88,8 +88,8 @@ namespace lev {
 		virtual void on_flush(IOPoll *) = 0;
 		virtual void on_error(IOPoll *, String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
-		virtual int recv(IOPoll *, u8 *, u32 *, String &) = 0;
-		virtual int send(IOPoll *, u8 *, u32 *, String &) = 0;
+		virtual int recv(IOPoll *, u8 *, uint *, String &) = 0;
+		virtual int send(IOPoll *, u8 *, uint *, String &) = 0;
 		inline void setflag(const SockFlags f) {
 			flags = f;
 		}
@@ -108,8 +108,8 @@ namespace lev {
 		//using ISocket::bind;
 		using ISocket::connect;
 
-//		int send(IOPoll *, Buffer *buf, u32 *len, String *msg);
-//		int recv(IOPoll *, Buffer *buf, u32 *len, String *msg);
+//		int send(IOPoll *, Buffer *buf, uint *len, String *msg);
+//		int recv(IOPoll *, Buffer *buf, uint *len, String *msg);
 
 		void on_error(IOPoll *, String &, const int);
 		bool on_close(Object *);
@@ -128,8 +128,8 @@ namespace lev {
 //		using ISocket::on_flush;
 //		using ISocket::recv;
 //		using ISocket::send;
-		int recv(IOPoll *, u8 *, u32 *, String &);
-		int send(IOPoll *, u8 *, u32 *, String &);
+		int recv(IOPoll *, u8 *, uint *, String &);
+		int send(IOPoll *, u8 *, uint *, String &);
 	};
 
 	template <class Base>
@@ -144,15 +144,15 @@ namespace lev {
 		using Base::on_flush;
 		void on_read(IOPoll *io) {
 			String s;
-			u32 len;
-			if (int err = recv(io, input.output(&len, READ_CHUNK), &len, &s))
+			uint len;
+			if (int err = recv(io, input.tail(&len, READ_CHUNK), &len, &s))
 				return on_error(io, s, err);
 			return on_data(io);	
 		}
 		void on_write(IOPoll *io) {
-			u32 len;
+			uint len;
 			String s;
-			if (int err = send(io, output.input(&len), &len, &s))
+			if (int err = send(io, output.head(&len), &len, &s))
 				return on_error(io, s, err);
 			if (output.empty())
 				on_flush(io);			

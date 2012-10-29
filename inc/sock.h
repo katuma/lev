@@ -44,10 +44,9 @@ namespace lev {
 	};
 
 	enum SockFlags {
-		NONE = 0,
-		ERROR = 1, // an error occured, other flags should be cleared
-		CANREAD = 2, // received via ->poll, ->run can read input data
-		PAUSED = 4, // ->pause() was called
+		NONE,
+		ERROR, // an error occured, other flags should be cleared
+		PAUSED, // ->pause() was called
 		// we can write w/o EAGAIN.
 		// On write():
 		// 1. if this flag is not set, buffers the write
@@ -58,12 +57,11 @@ namespace lev {
 		// ->run():
 		//    if flag is set, this try to flush the buffer. on egain do the same
 		//    as write()
-		CANWRITE = 8, 
-		BOUND = 16, // socket bound successfuly, one-shot
-		LISTENING = 32, // a server socket
-		CONNECTING = 64, // connecting client
-		CONNECTING2 = 128, // connected client, but callback not called
-		CONNECTED = 256, // connected client, after callback
+		BOUND, // socket bound successfuly, one-shot
+		LISTENING, // a server socket
+		CONNECTING , // connecting client
+
+		CONNECTED, // connected client, after callback
 	};
 
 	// An arbitrary socket interface
@@ -72,7 +70,7 @@ namespace lev {
 	protected:;
 		inline ISocket() : flags(NONE) {};
 
-		SockFlags flags;
+		u32 flags;
 	public:;
 		virtual ~ISocket();
 
@@ -93,17 +91,17 @@ namespace lev {
 		virtual bool on_close(Object *) = 0;
 		virtual int recv(IOPoll *, u8 *, uint *, String &) = 0;
 		virtual int send(IOPoll *, u8 *, uint *, String &) = 0;
-		inline void setflags(const SockFlags f) {
+		inline void setflags(u32 f) {
 			flags = f;
 		}
 		inline void setflag(const SockFlags f) {
-			flags = (SockFlags)(f | flags);
+			flags |= 1<<f;
 		}
 		inline bool hasflag(const SockFlags f) {
-			return (SockFlags)(f & flags) != 0;
+			return (flags & (1<<f))!=0;
 		}
 		inline void clearflag(const SockFlags f) {
-			flags = (SockFlags)((~f) & flags);
+			flags &= ~(1<<f);
 		}
 	};
 

@@ -13,11 +13,10 @@ namespace lev {
 	// select() uses hacked FD_SETSIZE. If kernel returns an error
 	// other than EINTR & friends, we'll switch to poll.
 	class IOPoll : public IIOPoll {
+
 	private:;
 		// poll() makes more sense after this (>4kb fdsets).
 		const int SELECT_CUTOFF = 16384;
-		// recompute pfds every 1ms
-		const int PFDS_THROTTLE = 1;
 
 		bool dirty;
 		bool usepoll;
@@ -29,22 +28,18 @@ namespace lev {
 		Vector<struct pollfd> pfds;
 		//unordered_map<int, ISocket *> sockmap;
 		Vector<ISocket *> sockmap;
-		
-		inline void _recompute_pfds() {
-			if (now < (pfdlast+PFDS_THROTTLE)) return;
-			pfdlast = now;
-			pfds.clear();
-			for (int i = 0; i < maxfd; i++)
-				if (short events = _calcevents(i)) {
-					struct pollfd pf = {
-						.fd = i,
-						.events = events,
-						.revents = 0
-					};
-					pfds.push_back(pf);
-				}
-			dirty = false;
-		};
+		Vector<uint> pfdmap;
+
+		inline int getfd(ISocket *sock) {
+			return ((InetSocket *) sock)->h.fd;
+		}
+		inline void _register_sock(ISocket *sock, struct pollfd &pfd) {
+			sockmap[getfd(sock)] = sock;
+			if (usepoll) {
+				pfdmap[getfd(sock)] = pfds.size();
+				pfds.push_back(pfd);
+			}
+		}
 
 		inline short _calcevents(const int fd) {
 			u32 events = 0;
@@ -52,22 +47,46 @@ namespace lev {
 				events = POLLIN;
 			if (wset[fd])
 				events |= POLLOUT;
-			if (!events) return 0;
 			return events | POLLERR | POLLHUP;
 		};
+		
+		inline void _recompute_pfds() {
+			pfdlast = now;
+			pfds.clear();
+			for (int i = 0; i < maxfd; i++) {
+				short evs = _calcevents(i);
+				struct pollfd pf = {
+					.fd = i,
+					.events = evs,
+					.revents = 0
+				};
+				if (ISocket *sk = sockmap[i]) {
+					assert(getfd(sk) == i);
+					_register_sock(sockmap[i], pf);
+				}
+			}
+				
+			dirty = false;
+		};
+
+
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
 		inline IOPoll *_enable(Vector<bool> &set, const int fd) {
-			if (!set[fd])
-				set.setat(fd, dirty = true);
+			if (!set[fd]) {
+				set.setat(fd, true);
+				if (usepoll && !dirty)
+					pfds[pfdmap[fd]].events = _calcevents(fd);
+			}
 			return this;
 		};
 
 		inline IOPoll *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, false);
-				dirty = true;
+				if (usepoll && !dirty)
+					pfds[pfdmap[fd]].events = _calcevents(fd);
 			}
 			return this;
 		};
@@ -133,9 +152,7 @@ namespace lev {
 			gettimeofday(&tv, 0);
 			now = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 		};
-		inline int getfd(ISocket *sock) {
-			return ((InetSocket *) sock)->h.fd;
-		}
+
 	public:;
 		u64 now;
 		inline IOPoll(Object *o) :
@@ -148,7 +165,6 @@ namespace lev {
 		inline IOPoll *add(ISocket *sock) {
 			int fd = getfd(sock);
 			assert(fd>=0);
-			sockmap[fd] = sock;
 			if (++fd > maxfd) {
 				maxfd = fd;
 				if (!usepoll && fd > SELECT_CUTOFF)
@@ -156,7 +172,10 @@ namespace lev {
 				rset.resize(maxfd, false);
 				wset.resize(maxfd, false);
 				sockmap.reserve(maxfd);
+				pfdmap.reserve((maxfd));
 			}
+			struct pollfd pf = {0};
+			_register_sock(sock, pf);
 			return this;
 		};
 
@@ -165,6 +184,13 @@ namespace lev {
 			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
+			if (usepoll && !dirty) {
+				if (pfds.back().fd != getfd(sock))
+					dirty = true;
+				else
+					pfds.pop_back();
+			}
+			sockmap[getfd(sock)] = 0;
 			return this;
 		};
 

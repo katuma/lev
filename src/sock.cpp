@@ -16,27 +16,26 @@ namespace lev {
 
 
 	// bind address
-	ISocket *InetSocket::bind(IAddr *a) {
+	ISocket *InetSocket::bind(IOPoll *io, IAddr *a) {
 		assert(dynamic_cast<ISockAddr*>(a));
 		ISockAddr *sa = (ISockAddr*)a;
 		if (h.bind(*sa))
 			setflag(ERROR);
-		else addflag(BOUND);
+		else setflag(BOUND);
 		return this;
 	}
 
 	// connect to an address
-	ISocket *InetSocket::connect(IAddr &a) {
+	ISocket *InetSocket::connect(IOPoll *io, IAddr &a) {
 		//assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
 		assert(dynamic_cast<ISockAddr*>(&a));
 		ISockAddr *sa = (ISockAddr*)&a;
 		if (h.connect(*sa)) {
 			if (errno == EINPROGRESS) {
-				addflag(CONNECTING);
-			}
-			setflag(ERROR);
-			flags = ERROR;
-		} else addflag(CONNECTING2);
+				io->enable_write(this);
+				setflag(CONNECTING);
+			} else setflag(ERROR);
+		} else setflag(CONNECTED);
 		return this;
 	}
 

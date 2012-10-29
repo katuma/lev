@@ -76,8 +76,11 @@ namespace lev {
 	public:;
 		virtual ~ISocket();
 
-		virtual ISocket *bind(IAddr *) = 0;
-		virtual ISocket *connect(IAddr &) = 0;
+		virtual ISocket *bind(IOPoll *, IAddr *) = 0;
+		virtual ISocket *connect(IOPoll *, IAddr &) = 0;
+		
+		virtual ISocket *bind(IOPoll *, String &, int);
+		virtual ISocket *connect(IOPoll *, String &, int);
 
 		virtual void poll(IOPoll *io, bool r, bool w);
 		
@@ -90,11 +93,17 @@ namespace lev {
 		virtual bool on_close(Object *) = 0;
 		virtual int recv(IOPoll *, u8 *, uint *, String &) = 0;
 		virtual int send(IOPoll *, u8 *, uint *, String &) = 0;
-		inline void setflag(const SockFlags f) {
+		inline void setflags(const SockFlags f) {
 			flags = f;
 		}
-		inline void addflag(const SockFlags f) {
+		inline void setflag(const SockFlags f) {
 			flags = (SockFlags)(f | flags);
+		}
+		inline bool hasflag(const SockFlags f) {
+			return (SockFlags)(f & flags) != 0;
+		}
+		inline void clearflag(const SockFlags f) {
+			flags = (SockFlags)((~f) & flags);
 		}
 	};
 
@@ -102,21 +111,15 @@ namespace lev {
 	protected:;
 	public:;
 		Handle h;
-		// bind address
-		ISocket *bind(IAddr *a);
-		ISocket *connect(IAddr &a);
-		//using ISocket::bind;
+		ISocket *bind(IOPoll *, String &, int);
+		ISocket *connect(IOPoll *, String &, int);
+		ISocket *bind(IOPoll *, IAddr *);
+		ISocket *connect(IOPoll *, IAddr &);
 		using ISocket::connect;
-
-//		int send(IOPoll *, Buffer *buf, uint *len, String *msg);
-//		int recv(IOPoll *, Buffer *buf, uint *len, String *msg);
 
 		void on_error(IOPoll *, String &, const int);
 		bool on_close(Object *);
 		bool on_delete(Object *);
-//		using ISocket::on_error;
-//		using ISocket::on_close;
-//		using ISocket::on_delete;
 		~InetSocket();
 	};
 	
@@ -124,12 +127,18 @@ namespace lev {
 	public:;
 		void on_data(IOPoll *);
 		void on_flush(IOPoll *);
-//		using ISocket::on_data;
-//		using ISocket::on_flush;
-//		using ISocket::recv;
-//		using ISocket::send;
+
 		int recv(IOPoll *, u8 *, uint *, String &);
 		int send(IOPoll *, u8 *, uint *, String &);
+	};
+	
+	class TCPServer : public InetSocket {
+		// a bit of misnomer - when we're ready to accept client
+		void on_write(IOPoll *);
+	};
+
+	class UDPSocket : public InetSocket {
+		
 	};
 
 	template <class Base>
@@ -142,6 +151,9 @@ namespace lev {
 		using Base::on_error;
 		using Base::on_data;
 		using Base::on_flush;
+		using Base::hasflag;
+		using Base::setflag;
+		using Base::clearflag;
 		void on_read(IOPoll *io) {
 			String s;
 			uint len;
@@ -152,6 +164,11 @@ namespace lev {
 		void on_write(IOPoll *io) {
 			uint len;
 			String s;
+			if (hasflag(CONNECTING)) {
+				clearflag(CONNECTING);
+				setflag(CONNECTED);
+				if (!output.bytes()) return;
+			}
 			if (int err = send(io, output.head(&len), &len, &s))
 				return on_error(io, s, err);
 			if (output.empty())

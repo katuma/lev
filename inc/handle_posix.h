@@ -120,6 +120,16 @@ namespace lev {
 			*len = res;
 			return 0;
 		}
+
+		inline int recvfrom(u8 *buf, u32 *len, ISockAddr *ia) {
+			int res;
+			socklen_t salen = sizeof(ia->sa);
+			if ((res = ::recvfrom(fd, buf, *len, 0, &ia->sa, &salen)) < 0) {
+				return errno;
+			}
+			*len = res;
+			return 0;
+		}
 	};
 }
 

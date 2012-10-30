@@ -7,6 +7,9 @@ namespace lev {
 	bool Object::on_delete(Object *parent) {
 		return true;
 	}
+	List::~List() {
+		
+	}
 	Object::~Object() {
 		Object *c;
 		// delete children until list is empty

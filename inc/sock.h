@@ -19,7 +19,8 @@ namespace lev {
 		FlushEvent,
 		ErrorEvent,
 	};
-	
+
+/*
 	typedef std::function<void(ISocket *, ...)> EventCB;
 	
 	class SockEvent : public List {
@@ -41,7 +42,7 @@ namespace lev {
 			e->linkto(&this->handlers);
 			return e->setcb(cb);
 		}
-	};
+	};*/
 
 	enum SockFlags {
 		NONE,
@@ -83,14 +84,20 @@ namespace lev {
 		virtual void poll(IOPoll *io, bool r, bool w);
 		
 		// event handlers. switch to virtual only if needed.
-		virtual void on_data(IOPoll *) = 0;
+		virtual void on_data(IOPoll *, u8 *, u32, IAddr *a) = 0;
 		virtual void on_read(IOPoll *) = 0;
 		virtual void on_write(IOPoll *) = 0;
 		virtual void on_flush(IOPoll *) = 0;
 		virtual void on_error(IOPoll *, String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
-		virtual int recv(IOPoll *, u8 *, uint *, String &) = 0;
-		virtual int send(IOPoll *, u8 *, uint *, String &) = 0;
+		virtual int recv(IOPoll *, u8 *, uint *, String *) = 0;
+		virtual int send(IOPoll *, u8 *, uint *, String *) = 0;
+		inline int recv(IOPoll *io, u8 *b, uint *len) {
+			return recv(io, b, len, 0);
+		}
+		inline int send(IOPoll *io, u8 *b, uint *len) {
+			return recv(io, b, len, 0);
+		}
 		inline void setflags(u32 f) {
 			flags = f;
 		}
@@ -123,11 +130,11 @@ namespace lev {
 	
 	class _TCPSocket : public InetSocket {
 	public:;
-		void on_data(IOPoll *);
+		void on_data(IOPoll *, u8 *, u32, IAddr *);
 		void on_flush(IOPoll *);
 
-		int recv(IOPoll *, u8 *, uint *, String &);
-		int send(IOPoll *, u8 *, uint *, String &);
+		int recv(IOPoll *, u8 *, uint *, String *);
+		int send(IOPoll *, u8 *, uint *, String *);
 	};
 	
 	class TCPServer : public InetSocket {
@@ -136,7 +143,11 @@ namespace lev {
 	};
 
 	class UDPSocket : public InetSocket {
-		
+		void on_data(IOPoll *, u8 *, u32, IAddr *);
+		int recv(IOPoll *, u8 *, uint *, String *);
+		int send(IOPoll *, u8 *, uint *, String *);
+		int sendto(IOPoll *, u8 *, uint *, IAddr *, String *);
+		void on_read(IOPoll *io);
 	};
 
 	template <class Base>
@@ -152,16 +163,22 @@ namespace lev {
 		using Base::hasflag;
 		using Base::setflag;
 		using Base::clearflag;
+		inline void flush(IOPoll *io) {
+			if (output.empty())
+				on_write(io);
+		}
 		void on_read(IOPoll *io) {
 			String s;
 			uint len;
 			if (int err = recv(io, input.tail(&len, READ_CHUNK), &len, &s))
 				return on_error(io, s, err);
-			return on_data(io);	
+			on_data(io, input.head(), input.bytes(), 0);
+			flush();
 		}
 		void on_write(IOPoll *io) {
 			uint len;
 			String s;
+			bool wasempty = output.empty();
 			if (hasflag(CONNECTING)) {
 				clearflag(CONNECTING);
 				setflag(CONNECTED);
@@ -169,12 +186,14 @@ namespace lev {
 			}
 			if (int err = send(io, output.head(&len), &len, &s))
 				return on_error(io, s, err);
+			output.consume(len);
 			if (output.empty())
 				on_flush(io);			
 		}
 	};
 	
 	typedef TBufferedSocket<_TCPSocket> TCPSocket;
+//	typedef LambdaHandlers<TBufferedSocket<_TCPSocket>> LTCPSocket;
 }
 #endif
 

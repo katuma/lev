@@ -1,11 +1,15 @@
-SRCS=$(wildcard src/*.cpp)
+SRCS=$(wildcard src/*.cpp) main.cpp
+HEADERS=$(wildcard inc/*.h)
 OBJS=$(SRCS:.cpp=.o)
 
-all: $(OBJS)
+
+main: $(OBJS)
+	clang -lstdc++ $(OBJS) -o main
+
+$(OBJS): $(SRCS) $(HEADERS)
 
 %.o: %.cpp
-	clang -DNDEBUG -Wall -std=c++11 -Iinc -O3 -fno-rtti -fno-exceptions -c $< -o $@
-	#g++ -Wall -std=c++11 -Iinc -O2 -ggdb -c $< -o $@
+	clang -Iinc -Wall -std=c++11 -Iinc -O3 -fno-rtti -fno-exceptions -c $< -o $@
 clean:
 	rm -f src/*.o
 

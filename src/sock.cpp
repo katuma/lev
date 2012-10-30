@@ -1,6 +1,7 @@
 #include "sock.h"
 #include "poll.h"
 #include "buf.h"
+#include "addr.h"
 
 namespace lev {
 	
@@ -50,7 +51,7 @@ namespace lev {
 
 
 	// class TCPSocket
-	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, String &msg) {
+	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, String *msg) {
 		if (!*len) {
 			io->disable_write(this);
 			return 0;
@@ -60,18 +61,44 @@ namespace lev {
 			io->enable_write(this);
 			return 0;
 		}
-		if (!*len)
+		if (!err && !*len)
 			err = ECONNRESET;
-		if (err) h.errnostr(err, msg);
+		if (err && msg) h.errnostr(err, *msg);
 		return err;
 	}
-	int _TCPSocket::recv(IOPoll *io, u8 *packet, u32 *len, String &msg) {
+	int _TCPSocket::recv(IOPoll *io, u8 *packet, u32 *len, String *msg) {
 		int err = h.recv(packet, len);
 		if (err == EWOULDBLOCK)
 			return 0;
-		if (!*len)
+		if (!err && !*len)
 			err = ECONNRESET;
-		if (err) h.errnostr(err, msg);
+		if (err && msg) h.errnostr(err, *msg);
 		return err;
 	}
+
+
+
+	// class UDPSocket
+	int UDPSocket::send(IOPoll *io, u8 *packet, u32 *len, String *msg) {
+		int err = h.send(packet, len);
+		if (err && msg) h.errnostr(err, *msg);
+		return err;
+	}
+
+	void UDPSocket::on_read(IOPoll *io) {
+		u8 buf[65536];
+		String msg;
+		u32 len = sizeof(buf);
+		ISockAddr ia;
+		int err = h.recvfrom(buf, &len, &ia);
+		if (err) {
+			 h.errnostr(err, msg);
+			 on_error(io, msg, err);
+			 return;
+		}
+		return on_data(io, buf, err, &ia);
+	}
+
+		
+
 }

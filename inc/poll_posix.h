@@ -174,8 +174,10 @@ namespace lev {
 				sockmap.reserve(maxfd);
 				pfdmap.reserve((maxfd));
 			}
-			struct pollfd pf = {0};
-			_register_sock(sock, pf);
+			if (usepoll) {
+				struct pollfd pf = {0};
+				_register_sock(sock, pf);
+			}
 			return this;
 		};
 

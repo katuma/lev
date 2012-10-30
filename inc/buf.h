@@ -10,11 +10,13 @@
 
 
 namespace lev {
+
+	
 	typedef char char_t;
 
 	// convert to or from endian
 	template <typename T>
-	T endian(T w, u32 endian)
+	T endian(T w, uint endian)
 	{
 		// this gets optimized out into if (endian == host_endian) return w;
 		union { uint64_t quad; uint32_t islittle; } t;
@@ -405,6 +407,7 @@ public:;
 
 	// strings are, in fact, vectors, padded with single 0
 	typedef Vector<char_t, 1> String;
+	
 
 	// buffer for input and output.
 #undef P
@@ -413,8 +416,8 @@ public:;
 		static const unsigned BUF_CHUNK = 4096;
 		static const unsigned BUF_COMPACT = 256*1024;
 	protected:;
-		u32 bufhead; // read head
 	public:;
+		u32 bufhead; // read head
 		inline Buffer() : Vector(), bufhead(0) { };
 
 	// buffer stuff
@@ -471,7 +474,90 @@ public:;
 		}
 
 		u8 *ensure(uint plen);
+
+		class BufPacker {
+			Buffer *b;
+		public:;
+			BufPacker(Buffer *ob) : b(ob) {};
+			template <typename T>
+			BufPacker &be(T *var) {
+				b->ensure(sizeof(T));
+				T val = endian(*var, 0);
+				b->append((u8*)&val, sizeof(val));
+				return *this;
+			}
+			template <typename T>
+			BufPacker &le(T *var) {
+				b->ensure(sizeof(T));
+				T val = endian(*var, 1);
+				b->append((u8*)&val, sizeof(val));
+				return *this;
+			}
+		};
+		
+		class BufUnpacker {
+			Buffer *b;
+			bool err;
+		public:;
+			BufUnpacker(Buffer *ib) : b(ib), err(false) {};
+			inline bool check(uint len) {
+				if (err) return false;
+				if (len > b->bytes()) {
+					err = true;
+					return false;
+				}
+				return true;
+			}
+			
+			template <typename T>
+			BufUnpacker &be(T *var) {
+				if (check(sizeof(T))) {
+					*var = endian(*((T*)b->head()), 0);
+					b->consume(sizeof(T));
+				}
+				return *this;
+			}
+			template <typename T>
+			BufUnpacker &le(T *var) {
+				if (check(sizeof(T))) {
+					*var = endian(*((T*)b->head()), 1);
+					b->consume(sizeof(T));
+				}
+				return *this;
+			}
+
+			// copy zero-terminated string
+			BufUnpacker &str_z(String &str) {
+				u8 *h = b->head();
+				uint n = b->bytes();
+				for (uint i = 0; i < n; i++) {
+					if (!h[i]) {
+						str.copy((char_t*)h, i);
+						b->consume(i+1);
+						return *this;
+					}
+				}
+				err = true;
+				return *this;
+			}
+			
+			bool commit(u32 pos) {
+				volatile bool e = err;
+				if (e) b->bufhead = pos;
+				// wow, fuck this
+				delete this;
+				return !e;
+			}
+		};
+		inline BufUnpacker& unpack(u32 *pos) {
+			*pos = bufhead;
+			return *(new BufUnpacker(this));
+		}
+		inline BufPacker& pack() {
+			return *(new BufPacker(this));
+		}
 	};
+
 
 
 

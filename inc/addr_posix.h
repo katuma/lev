@@ -7,6 +7,7 @@ namespace lev {
 	// a posix socket address
 	class ISockAddr : public IAddr {
 	public:;
+		inline ISockAddr() { };
 		inline ISockAddr(const short family) {
 			sa.sa_family = family;
 		};

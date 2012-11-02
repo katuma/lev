@@ -63,7 +63,7 @@ public:;
         // socks4a marker - unpack hostname
         if (dstip&0xffffff00==0)
             // unpack the hostname requested
-            if (!input.unpack(&pos).str_z(remote).commit(pos))
+            if (!input.unpack().str_z(remote).commit(pos))
                 return;
             else if remote.empty()
                 kill << "socks4a hostname should not be empty";
@@ -78,12 +78,12 @@ public:;
 	}
 }
 
-class SOCKSServer : public TCPServer {
-	void on_client(IOLoop *io, TCPSocket *client) {
+class SOCKSServer : public TCPServer<SOCKSClient> {
+	void on_client(IOLoop *io, SOCKSClient *client) {
 		elog << "Client connected : " + client;
 		client->watermark(2 + 4 + 2 + 1);
 	}
-	void on_error(io, String &msg, int err) {
+	void on_error(IOLoop *io, String &msg, int err) {
 		elog << "Server bind error " + msg + " code: " + err;
 	}
 }
@@ -91,7 +91,7 @@ class SOCKSServer : public TCPServer {
 int main(int argc, char **argv)
 {
 	auto loop = IOLoop.create(30, 300);
-	auto server = loop->create<SOCKSServer, SOCKSClient>();
+	auto server = loop->create<SOCKSServer>();
 	server->bind(loop, new String(argc>1?argv[1]:0), argc>2?atoi(argv[2]):1080);
 	server->listen();
 	loop->run();

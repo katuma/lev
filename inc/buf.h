@@ -2,6 +2,8 @@
 #define LEV_BUF_H
 
 #include "obj.h"
+#include "vector.h"
+#include "str.h"
 
 #include <memory.h>
 #include <stdlib.h>
@@ -10,10 +12,6 @@
 
 
 namespace lev {
-
-	
-	typedef char char_t;
-
 	// convert to or from endian
 	template <typename T>
 	T endian(T w, uint endian)
@@ -34,383 +32,9 @@ namespace lev {
 		return r;
 	};
 
-	// common vector class
-	class VectorBase {
-protected:;
-		void _reserve(uint nsz);
-		uint _ensure(uint size, uint sz);
-		void _insert(uint into, void *val, uint repeat, uint sz, uint pad);
-		inline VectorBase() : p(0) {};
-public:;
-		void *p;
-		uint pos;
-
-		// no _msize() - we have keep track
-#ifndef _MSIZE_HACK
-		uint alloc_size;
-		inline uint getsize() const {
-			return alloc_size;
-		}
-		inline uint setsize(uint n) {
-			return (alloc_size = n);
-		}
-#else
-#ifdef _MSIZE_DLMALLOC
-		inline uint getsize() {
-			(!p) return 0;
-			// uber-UB
-			return ((size_t *)(p))[-1];
-		}
-
-#elif defined(_MSIZE_WIN32)
-		inline getsize() {
-			(!p) return 0;
-			return _msize(p);
-		}
-#endif
-		// this will hopefully bail
-		inline setsize(uint n) {
-			assert(n == getsize());
-			return n;
-		}
-#endif
-
-public:;
-		// check if empty
-		inline bool empty() {
-			return !pos;
-		}
-		// return maximum size
-		inline uint max_size() {
-			return INT_MAX;
-		}
-		// return size
-		inline uint size() {
-			return pos;
-		}
-		inline ~VectorBase() {
-			if (p) free(p);
-		}
-	};
-	
-#define P static_cast<T*>(p)
-	template <typename T, uint pad = 0>
-	class Vector : public VectorBase {
-	protected:;
-		static const uint sz = sizeof(T);
-		static const uint factor = sz * 8;
-
-		typedef T* iterator;
-	public:;
-		inline Vector() : VectorBase() {};
-		inline Vector(Vector &s) : VectorBase() {
-			copy(s);
-		}
-
-		// specialized for strings
-		inline Vector(char_t *s) : VectorBase() {
-			copy(s, ::strlen(s));
-		}
-
-		// amount of available space
-		inline uint avail() {
-			return capacity() - pos;
-		}
-		
-		// append array of elements. no padding.
-		inline Vector& append(const T *ptr, uint plen) {
-			uint nsz = _ensure(plen, sz);
-			memcpy(P + pos, ptr, nsz);
-			pos += plen;
-			return *this;
-		}
-
-		// return elm at n. negative indexes are valid.
-		inline T& at(int n) {
-			if (n < 0)
-				n+=pos;
-			return P[n];
-		}
-
-
-		// assign repeated element
-		/*inline Vector<T>& assign(const uint repeat, const &T val) {
-			pos = 0;
-			_insert(0, &val, repeat, sz, pad);
-			return this;
-		}*/
-		
-		// return last element
-		inline T& back() {
-			return at(-1);
-		}
-
-
-		// return first iterator
-		inline iterator begin() {
-			return P;
-		}
-		
-		// storage available
-		inline uint capacity() {
-			return getsize()/sz;
-		}
-
-		// clear elements
-		inline Vector& clear() {
-			pos = 0;
-			return *this;
-		}
-
-
-		// return end of vector
-		inline iterator end() {
-			return P + pos;
-		}
-
-		// erase elements
-		inline iterator erase(iterator first, iterator last) {
-			memmove(first, last, (&P[pos] - last) * sz);
-			pos = first - P;
-			return first;
-		}
-
-		// erase element
-		inline iterator erase(iterator first) {
-			return erase(first, first + 1);
-		}
-
-		// first element
-		inline T& front() {
-			return at(0);
-		}
-
-		// XXX allocators not implemented
-		
-		// insert element at position
-		inline Vector& insert(iterator position, uint n, const T& x) {
-			_insert(position, &x, n, sz, pad);
-			return *this;
-		}
-		
-		// pad
-		inline Vector<T>& addpad() {
-			memset(P + pos, 0, pad+sz);			
-			return *this;
-		}
-
-		// copy elements
-		inline Vector& copy(const T *src, uint len) {
-			pos = len;
-			_reserve((len+pad) * sz);
-			memcpy(p, src, len * sz);;
-			return *this;
-		}
-
-		inline Vector& copy(const Vector<T>&src) {
-			copy(src.p, src.getsize() / sz);
-			return this;
-		}
-
-		inline Vector& operator=(const Vector<T>&src) {
-			copy(src);
-			return src; // what about `this`?
-		}
-
-		inline Vector<char_t, 1>& operator=(const char *src) {
-			//copy(src.p, src.getsize() / sz);
-			copy(src, ::strlen(src));
-			return *this;
-		}
-
-		// index element
-		inline T& operator[](int idx) {
-			return at(idx);
-		}
-
-		// remove and return last element
-		inline T& pop_back() {
-			T &val = P[--pos];
-			addpad();
-			return val;
-		}
-
-		// push element to the end, and return it's iterator
-		Vector<T>& push_back(T &val) {
-			_ensure(1 + pad, sz);
-			P[pos++] = val;
-			addpad();
-			return *this;
-		}
-
-		// reserve buffer for n elms
-		inline Vector<T>& reserve(const uint n) {
-			_reserve((n+sz)*sz);
-			return *this;
-		}
-
-		// resize vector
-		inline Vector<T>& resize(uint n, T &val) {
-			if (n <= pos) {
-				pos = n;
-				addpad();
-				return;
-			}
-			uint repeat = n - pos;
-			pos = n;
-			_insert(n, &val, repeat, sz, pad);
-		}
-		
-		// swap
-		inline Vector<T>& swap(Vector<T> &other) {
-			void *tmp = p;
-			uint tmpsize = getsize();
-			p = other.p;
-			setsize(other.getsize());
-			other.p = tmp;
-			other.setsize(tmpsize);
-			return this;
-		}
-	};
-
-	template<>
-	class Vector<bool> : public VectorBase {
-	protected:;
-		typedef ulong T;
-		static const uint sz = sizeof(T);
-		static const uint factor = sz * 8;
-
-		inline const ulong _mask(uint n) {
-			return 1<<(n % factor);
-		}
-
-		inline const uint _word(uint n) {
-			return n / factor;
-		}
-
-		// take number of bits, align to word and return number of bytes
-		inline const uint _align(uint n) {
-			return _word(n + (factor-1)) * sz;
-		}
-
-	public:;
-		inline Vector() : VectorBase() {};
-
-		// amount of available space
-		inline uint avail() {
-			return capacity() - pos;
-		}
-
-		// return elm at n. negative indexes are valid.
-		inline bool at(int n) {
-			if (n < 0)
-				n+=pos;
-			return P[_word(n)] % _mask(n);
-		}
-
-		// return last element
-		inline const bool back() {
-			return at(-1);
-		}
-
-		// storage available
-		inline uint capacity() {
-			return getsize() * factor;
-		}
-		
-		// clear elements
-		inline Vector<bool>& clear() {
-			pos = 0;
-			return *this;
-		}
-
-		// first element
-		inline const bool front() {
-			return at(0);
-		}
-
-		// XXX allocators not implemented
-
-
-		inline Vector<bool>& copy(const Vector<bool>&src) {
-			_reserve(src.getsize());
-			memcpy(p, src.p, _align(src.pos));
-			return *this;
-		}
-
-		inline const Vector<bool>& operator=(const Vector<bool>&src) {
-			copy(src);
-			return src; // what about `this`?
-		}
-
-		// index element
-		inline bool operator[](const int idx) {
-			return at(idx);
-		}
-
-		// remove and return last element
-		inline bool pop_back() {
-			return at(--pos);
-		}
-
-		// set bit
-		inline void setat(uint pos, bool val) {
-			if (val)
-				P[_word(pos)] |= _mask(pos);
-			else
-				P[_word(pos)] &= ~_mask(pos);			
-		}
-
-		// push element to the end, and return it's iterator
-		Vector<bool>& push_back(bool val) {
-			reserve(pos + 1);
-			setat(pos++, val);
-			return *this;
-		}
-
-		// reserve buffer for n elms
-		inline Vector<bool>& reserve(const uint n) {
-			_reserve(_align(n));
-			return *this;
-		}
-
-		// resize vector
-		inline Vector<bool>& resize(uint n, bool val) {
-			if (n <= pos) {
-				pos = n;
-				return *this;
-			}
-			reserve(n);
-			while (pos < n)
-				setat(pos++, val);
-			return *this;
-		}
-		
-		// return size
-		inline uint size() {
-			return pos;
-		}
-		
-		// swap
-		inline Vector<bool>& swap(Vector<bool> &other) {
-			void *tmp = p;
-			uint tmpsize = getsize();
-			p = other.p;
-			setsize(other.getsize());
-			other.p = tmp;
-			other.setsize(tmpsize);
-			return *this;
-		}
-	};
-
-
-
-	// strings are, in fact, vectors, padded with single 0
-	typedef Vector<char_t, 1> String;
 	
 
 	// buffer for input and output.
-#undef P
 #define P static_cast<u8*>(p)
 	class Buffer : public Vector<u8> {
 		static const unsigned BUF_CHUNK = 4096;
@@ -475,91 +99,156 @@ public:;
 
 		u8 *ensure(uint plen);
 
-		class BufPacker {
-			Buffer *b;
-		public:;
-			BufPacker(Buffer *ob) : b(ob) {};
-			template <typename T>
-			BufPacker &be(T *var) {
-				b->ensure(sizeof(T));
-				T val = endian(*var, 0);
-				b->append((u8*)&val, sizeof(val));
-				return *this;
-			}
-			template <typename T>
-			BufPacker &le(T *var) {
-				b->ensure(sizeof(T));
-				T val = endian(*var, 1);
-				b->append((u8*)&val, sizeof(val));
-				return *this;
-			}
-		};
+		////////////////////////////////
+		// packers
+		////////////////////////////////
+		template <typename T>
+		inline Buffer& be(T &var) {
+			ensure(sizeof(T));
+			T val = endian(var, 0);
+			append((u8*)&val, sizeof(val));
+			return *this;
+		}
+		template <typename T>
+		inline Buffer& le(T &var) {
+			ensure(sizeof(T));
+			T val = endian(var, 1);
+			append((u8*)&val, sizeof(val));
+			return *this;
+		}
 		
-		class BufUnpacker {
-			Buffer *b;
-			bool err;
-		public:;
-			BufUnpacker(Buffer *ib) : b(ib), err(false) {};
-			inline bool check(uint len) {
-				if (err) return false;
-				if (len > b->bytes()) {
-					err = true;
-					return false;
-				}
-				return true;
-			}
-			
-			template <typename T>
-			BufUnpacker &be(T *var) {
-				if (check(sizeof(T))) {
-					*var = endian(*((T*)b->head()), 0);
-					b->consume(sizeof(T));
-				}
-				return *this;
-			}
-			template <typename T>
-			BufUnpacker &le(T *var) {
-				if (check(sizeof(T))) {
-					*var = endian(*((T*)b->head()), 1);
-					b->consume(sizeof(T));
-				}
-				return *this;
-			}
+		// pack asciiz
+		inline Buffer& str_z(String &src) {
+			ensure(src->capacity());
+		}
 
-			// copy zero-terminated string
-			BufUnpacker &str_z(String &str) {
-				u8 *h = b->head();
-				uint n = b->bytes();
-				for (uint i = 0; i < n; i++) {
-					if (!h[i]) {
-						str.copy((char_t*)h, i);
-						b->consume(i+1);
-						return *this;
-					}
-				}
-				err = true;
-				return *this;
-			}
-			
-			bool commit(u32 pos) {
-				volatile bool e = err;
-				if (e) b->bufhead = pos;
-				// wow, fuck this
-				delete this;
-				return !e;
-			}
-		};
-		inline BufUnpacker& unpack(u32 *pos) {
+		////////////////////////////////
+		// unpackers
+		////////////////////////////////
+
+		// mark bufhead position
+		inline Buffer& unpack(u32 *pos) {
 			*pos = bufhead;
-			return *(new BufUnpacker(this));
+			return *this;
 		}
-		inline BufPacker& pack() {
-			return *(new BufPacker(this));
+
+		// check if enough bytes, otherwise error
+		inline bool check(uint len) {
+			if (pos > bufhead) return false;
+			if (len > bytes()) {
+				pos = bufhead+1;
+				return false;
+			}
+			return true;
 		}
+
+		template <typename T>
+		inline Buffer& be(T *var) {
+			if (check(sizeof(T))) {
+				*var = endian(*((T*)b->head()), 0);
+				consume(sizeof(T));
+			}
+			return *this;
+		}
+		template <typename T>
+		inline Buffer& le(T *var) {
+			if (check(sizeof(T))) {
+				*var = endian(*((T*)b->head()), 1);
+				consume(sizeof(T));
+			}
+			return *this;
+		}
+
+		// unpack zero-terminated string
+		Buffer& str_z(String *str) {
+			u8 *h = head();
+			uint n = bytes();
+			for (uint i = 0; i < n; i++) {
+				if (!h[i]) {
+					str->copy((u8*)h, i);
+					consume(i+1);
+					return *this;
+				}
+			}
+			// not enough bytes
+			pos = bufhead+1;
+			return *this;
+		}
+		
+		// on error, restore old buffer position
+		bool commit(u32 opos) {
+			volatile bool e = err;
+			if (pos > bufhead) {
+				 bufhead = opos;
+				 return false;
+			}
+			return true;
+		}
+		
 	};
 
+	/*
+	class BufPacker : Buffer {
+	private:;
+		inline BufPacker() {};
+	public:;
+		template <typename T>
 
+	};
+	
+	class BufUnpacker {
+	private:;
+		inline BufPacker() {};
+	public:;
+		inline bool check(uint len) {
+			if (bufhead > pos) return false;
+			if (len > bytes()) {
+				bufhead = pos+1;
+				return false;
+			}
+			return true;
+		}
+		
+		template <typename T>
+		BufUnpacker &be(T *var) {
+			if (check(sizeof(T))) {
+				*var = endian(*((T*)b->head()), 0);
+				b->consume(sizeof(T));
+			}
+			return *this;
+		}
+		template <typename T>
+		BufUnpacker &le(T *var) {
+			if (check(sizeof(T))) {
+				*var = endian(*((T*)b->head()), 1);
+				b->consume(sizeof(T));
+			}
+			return *this;
+		}
 
+		// copy zero-terminated string
+		BufUnpacker &str_z(String &str) {
+			u8 *h = b->head();
+			uint n = b->bytes();
+			for (uint i = 0; i < n; i++) {
+				if (!h[i]) {
+					str.copy((char_t*)h, i);
+					b->consume(i+1);
+					return *this;
+				}
+			}
+			err = true;
+			return *this;
+		}
+		
+		bool commit(u32 pos) {
+			volatile bool e = err;
+			if (e) b->bufhead = pos;
+			// wow, fuck this
+			delete this;
+			return !e;
+		}
+	};*/
 
 }
 #undef P

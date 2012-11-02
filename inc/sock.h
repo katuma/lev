@@ -187,7 +187,7 @@ namespace lev {
 			if (int err = send(io, output.head(&len), &len, &s))
 				return on_error(io, s, err);
 			output.consume(len);
-			if (output.empty())
+			if (!wasempty && output.empty())
 				on_flush(io);			
 		}
 	};

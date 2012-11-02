@@ -119,7 +119,9 @@ namespace lev {
 		
 		// pack asciiz
 		inline Buffer& str_z(String &src) {
-			ensure(src->capacity());
+			ensure(src.size());
+			append((u8*)src.p, src.size());
+			return *this;
 		}
 
 		////////////////////////////////
@@ -145,7 +147,7 @@ namespace lev {
 		template <typename T>
 		inline Buffer& be(T *var) {
 			if (check(sizeof(T))) {
-				*var = endian(*((T*)b->head()), 0);
+				*var = endian(*((T*)head()), 0);
 				consume(sizeof(T));
 			}
 			return *this;
@@ -153,7 +155,7 @@ namespace lev {
 		template <typename T>
 		inline Buffer& le(T *var) {
 			if (check(sizeof(T))) {
-				*var = endian(*((T*)b->head()), 1);
+				*var = endian(*((T*)head()), 1);
 				consume(sizeof(T));
 			}
 			return *this;
@@ -165,7 +167,7 @@ namespace lev {
 			uint n = bytes();
 			for (uint i = 0; i < n; i++) {
 				if (!h[i]) {
-					str->copy((u8*)h, i);
+					str->copy((char_t*)h, i);
 					consume(i+1);
 					return *this;
 				}
@@ -177,7 +179,6 @@ namespace lev {
 		
 		// on error, restore old buffer position
 		bool commit(u32 opos) {
-			volatile bool e = err;
 			if (pos > bufhead) {
 				 bufhead = opos;
 				 return false;

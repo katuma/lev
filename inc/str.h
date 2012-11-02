@@ -14,7 +14,7 @@ namespace lev {
 
 	// strings are, in fact, vectors, padded with single 0
 	class String : public Vector<char_t, 1> {
-		
+	public:;
 		inline String() : Vector<char_t,1>() {};
 		inline String(char_t *s) : Vector<char_t,1>() {
 			copy(s, ::strlen(s));
@@ -24,7 +24,7 @@ namespace lev {
 			copy(src, ::strlen(src));
 			return *this;
 		}
-	}
+	};
 }
 
-#endif LEV_STR_H
+#endif

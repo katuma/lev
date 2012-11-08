@@ -20,7 +20,7 @@ protected:;
 		inline VectorBase() : p(0) {};
 public:;
 		void *p;
-		uint pos;
+		uint pos; // in elements, not bytes
 
 		// no _msize() - we have keep track
 #ifndef _MSIZE_HACK
@@ -88,11 +88,7 @@ public:;
 		inline uint avail() {
 			return capacity() - pos;
 		}
-		
-		inline uint size() {
-			return pos;
-		}
-		
+				
 		// append array of elements. no padding.
 		inline Vector& append(const T *ptr, uint plen) {
 			uint nsz = _ensure(plen, sz);

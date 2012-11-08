@@ -1,5 +1,8 @@
 #include "buf.h"
 #include "sock.h"
+#include "str.h"
+
+using lev;
 
 class SOCKSRemote : public TCPSocket {
 public:;

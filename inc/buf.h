@@ -23,7 +23,7 @@ namespace lev {
 		T r = 0;
 
 		// decent compilers will unroll this (gcc)
-		// or even convert straight into siřngle bswap (clang)
+		// or even convert straight into single bswap (clang)
 		for (int i = 0; i < sizeof(r); i++) {
 			r <<= 8;
 			r |= w & 0xff;
@@ -37,27 +37,28 @@ namespace lev {
 	// buffer for input and output.
 #define P static_cast<u8*>(p)
 	class Buffer : public Vector<u8> {
-		static const unsigned BUF_CHUNK = 4096;
-		static const unsigned BUF_COMPACT = 256*1024;
+		static const uint BUF_CHUNK = 4096;
+		static const uint BUF_COMPACT = 256*1024;
+		static const uint BUF_ERROR = (uint)(-1);
 	protected:;
 	public:;
 		u32 bufhead; // read head
 		inline Buffer() : Vector(), bufhead(0) { };
 
-	// buffer stuff
+		// throw consumed buffer head
 		inline uint compact() {
 			memmove(p, (u8*)p + bufhead, bufhead);
 			pos -= bufhead;
 			bufhead = 0;
 			return capacity();
 		}
-		// get a pointer to buffer head, or null if no data to consume
 
 		// return how much is length for fetching
 		inline uint bytes() {
 			return pos - bufhead;
 		}
 
+		// get a pointer to buffer head, or null if no data to consume
 		inline u8 *head() {
 			return P + bufhead;
 		}
@@ -136,9 +137,9 @@ namespace lev {
 
 		// check if enough bytes, otherwise error
 		inline bool check(uint len) {
-			if (pos > bufhead) return false;
+			if (bufhead == BUF_ERROR) return false;
 			if (len > bytes()) {
-				pos = bufhead+1;
+				bufhead = BUF_ERROR;
 				return false;
 			}
 			return true;
@@ -173,13 +174,13 @@ namespace lev {
 				}
 			}
 			// not enough bytes
-			pos = bufhead+1;
+			bufhead = BUF_ERROR;
 			return *this;
 		}
 		
 		// on error, restore old buffer position
 		bool commit(u32 opos) {
-			if (pos > bufhead) {
+			if (bufhead == BUF_ERROR) {
 				 bufhead = opos;
 				 return false;
 			}
@@ -187,70 +188,6 @@ namespace lev {
 		}
 		
 	};
-
-	/*
-	class BufPacker : Buffer {
-	private:;
-		inline BufPacker() {};
-	public:;
-		template <typename T>
-
-	};
-	
-	class BufUnpacker {
-	private:;
-		inline BufPacker() {};
-	public:;
-		inline bool check(uint len) {
-			if (bufhead > pos) return false;
-			if (len > bytes()) {
-				bufhead = pos+1;
-				return false;
-			}
-			return true;
-		}
-		
-		template <typename T>
-		BufUnpacker &be(T *var) {
-			if (check(sizeof(T))) {
-				*var = endian(*((T*)b->head()), 0);
-				b->consume(sizeof(T));
-			}
-			return *this;
-		}
-		template <typename T>
-		BufUnpacker &le(T *var) {
-			if (check(sizeof(T))) {
-				*var = endian(*((T*)b->head()), 1);
-				b->consume(sizeof(T));
-			}
-			return *this;
-		}
-
-		// copy zero-terminated string
-		BufUnpacker &str_z(String &str) {
-			u8 *h = b->head();
-			uint n = b->bytes();
-			for (uint i = 0; i < n; i++) {
-				if (!h[i]) {
-					str.copy((char_t*)h, i);
-					b->consume(i+1);
-					return *this;
-				}
-			}
-			err = true;
-			return *this;
-		}
-		
-		bool commit(u32 pos) {
-			volatile bool e = err;
-			if (e) b->bufhead = pos;
-			// wow, fuck this
-			delete this;
-			return !e;
-		}
-	};*/
-
 }
 #undef P
 

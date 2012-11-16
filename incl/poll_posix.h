@@ -62,7 +62,7 @@ namespace lev {
 				};
 				if (ISocket *sk = sockmap[i]) {
 					assert(getfd(sk) == i);
-					_register_sock(sockmap[i], pf);
+					_register_sock(sk, pf);
 				}
 			}
 				

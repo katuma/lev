@@ -40,13 +40,13 @@ public:;
 		}
 
 #elif defined(_MSIZE_WIN32)
-		getsize() {
+		uint getsize() {
 			(!p) return 0;
 			return _msize(p);
 		}
 #endif
 		// this will hopefully bail
-		setsize(uint n) {
+		uint setsize(uint n) {
 			assert(n == getsize());
 			return n;
 		}

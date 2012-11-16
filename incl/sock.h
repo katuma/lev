@@ -76,19 +76,19 @@ namespace lev {
 		virtual ~ISocket();
 
 		virtual ISocket *bind(IOPoll *, IAddr *) = 0;
-		virtual ISocket *connect(IOPoll *, IAddr &) = 0;
-		
-		virtual ISocket *bind(IOPoll *, String &, int);
-		virtual ISocket *connect(IOPoll *, String &, int);
+		virtual ISocket *connect(IOPoll *, const IAddr &) = 0;
+
+		virtual ISocket *bind(IOPoll *, const String &, int);
+		virtual ISocket *connect(IOPoll *, const String &, int);
 
 		virtual void poll(IOPoll *io, bool r, bool w);
 		
 		// event handlers. switch to virtual only if needed.
-		virtual void on_data(IOPoll *, u8 *, u32, IAddr *a) = 0;
+		virtual void on_data(IOPoll *, const u8 *, u32, const IAddr &) = 0;
 		virtual void on_read(IOPoll *) = 0;
 		virtual void on_write(IOPoll *) = 0;
 		virtual void on_flush(IOPoll *) = 0;
-		virtual void on_error(IOPoll *, String &, const int) = 0;
+		virtual void on_error(IOPoll *, const String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
 		virtual int recv(IOPoll *, u8 *, uint *, String *) = 0;
 		virtual int send(IOPoll *, const u8 *, uint *, String *) = 0;
@@ -117,25 +117,26 @@ namespace lev {
 	protected:;
 	public:;
 		Handle h;
-		ISocket *bind(IOPoll *, String &, int);
-		ISocket *connect(IOPoll *, String &, int);
+		ISocket *bind(IOPoll *, const String &, int);
+		ISocket *connect(IOPoll *, const String &, int);
+
 		ISocket *bind(IOPoll *, IAddr *);
-		ISocket *connect(IOPoll *, IAddr &);
+		ISocket *connect(IOPoll *, const IAddr &);
 		using ISocket::connect;
 
-		void on_error(IOPoll *, String &, const int);
+		void on_error(IOPoll *, const String &, const int);
 		bool on_close(Object *);
 		bool on_delete(Object *);
 		~InetSocket();
 	};
 	
-	class _TCPSocket : public InetSocket {
+	class TCPSocket : public InetSocket {
 	public:;
-		void on_data(IOPoll *, u8 *, u32, IAddr *);
+		void on_data(IOPoll *, const u8 *, u32, const IAddr &);
 		void on_flush(IOPoll *);
 
 		int recv(IOPoll *, u8 *, uint *, String *);
-		int send(IOPoll *, u8 *, uint *, String *);
+		int send(IOPoll *, const u8 *, uint *, String *);
 	};
 	
 	class TCPServer : public InetSocket {
@@ -144,11 +145,11 @@ namespace lev {
 	};
 
 	class UDPSocket : public InetSocket {
-		void on_data(IOPoll *, u8 *, u32, IAddr *);
+		void on_data(IOPoll *, const u8 *, u32, const IAddr &);
 		int recv(IOPoll *, u8 *, uint *, String *);
-		int send(IOPoll *, u8 *, uint *, String *);
-		int sendto(IOPoll *, u8 *, uint *, IAddr *, String *);
-		void on_read(IOPoll *io);
+		int send(IOPoll *, const u8 *, uint *, String *);
+		int sendto(IOPoll *, const u8 *, uint *, const IAddr &, String *);
+		void on_read(IOPoll *);
 	};
 
 	template <class Base>

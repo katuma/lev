@@ -13,10 +13,10 @@ namespace lev {
 	// An arbitrary address interface
 	class IAddr : public Object {
 	public:;
-		//inline IAddr() : Object(0) {};
+		//IAddr() : Object(0) {};
 		virtual void decode(const String &s);
 		// cast to covariants
-		//template <class T> inline operator T*() { return static_cast<T*>(this); };
+		//template <class T> operator T*() { return static_cast<T*>(this); };
 	};
 }
 

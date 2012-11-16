@@ -43,10 +43,10 @@ namespace lev {
 	protected:;
 	public:;
 		u32 bufhead; // read head
-		inline Buffer() : Vector(), bufhead(0) { };
+		Buffer() : Vector(), bufhead(0) { };
 
 		// throw consumed buffer head
-		inline uint compact() {
+		uint compact() {
 			memmove(p, (u8*)p + bufhead, bufhead);
 			pos -= bufhead;
 			bufhead = 0;
@@ -54,45 +54,45 @@ namespace lev {
 		}
 
 		// return how much is length for fetching
-		inline uint bytes() {
+		uint bytes() {
 			return pos - bufhead;
 		}
 
 		// get a pointer to buffer head, or null if no data to consume
-		inline u8 *head() {
+		u8 *head() {
 			return P + bufhead;
 		}
 
-		inline u8 *head(uint *len) {
+		u8 *head(uint *len) {
 			*len = bytes();
 			return head();
 		}
 
-		inline u8 *tail() {
+		u8 *tail() {
 			return P + pos;
 		}
 
-		inline u8 *tail(uint *len) {
+		u8 *tail(uint *len) {
 			*len = getsize() - pos;
 			return tail();
 		}
 
-		inline u8 *tail(uint *len, const uint en) {
+		u8 *tail(uint *len, const uint en) {
 			ensure(en);
 			return tail(len);
 		}
 		
-		inline void reset() {
+		void reset() {
 			pos = bufhead = 0;
 		}
 
 		// set buffer head position
-		inline void seek(uint pos) {
+		void seek(uint pos) {
 			bufhead = pos;
 		}
 
 		// consume 'len'
-		inline bool consume(uint len) {
+		bool consume(uint len) {
 			assert(bytes() >= len);
 			bufhead += len;
 			return false;
@@ -104,14 +104,14 @@ namespace lev {
 		// packers
 		////////////////////////////////
 		template <typename T>
-		inline Buffer& be(T &var) {
+		Buffer& be(T &var) {
 			ensure(sizeof(T));
 			T val = endian(var, 0);
 			append((u8*)&val, sizeof(val));
 			return *this;
 		}
 		template <typename T>
-		inline Buffer& le(T &var) {
+		Buffer& le(T &var) {
 			ensure(sizeof(T));
 			T val = endian(var, 1);
 			append((u8*)&val, sizeof(val));
@@ -119,7 +119,7 @@ namespace lev {
 		}
 		
 		// pack asciiz
-		inline Buffer& str_z(String &src) {
+		Buffer& str_z(String &src) {
 			ensure(src.size());
 			append((u8*)src.p, src.size());
 			return *this;
@@ -130,13 +130,13 @@ namespace lev {
 		////////////////////////////////
 
 		// mark bufhead position
-		inline Buffer& unpack(u32 *pos) {
+		Buffer& unpack(u32 *pos) {
 			*pos = bufhead;
 			return *this;
 		}
 
 		// check if enough bytes, otherwise error
-		inline bool check(uint len) {
+		bool check(uint len) {
 			if (bufhead == BUF_ERROR) return false;
 			if (len > bytes()) {
 				bufhead = BUF_ERROR;
@@ -146,7 +146,7 @@ namespace lev {
 		}
 
 		template <typename T>
-		inline Buffer& be(T *var) {
+		Buffer& be(T *var) {
 			if (check(sizeof(T))) {
 				*var = endian(*((T*)head()), 0);
 				consume(sizeof(T));
@@ -154,7 +154,7 @@ namespace lev {
 			return *this;
 		}
 		template <typename T>
-		inline Buffer& le(T *var) {
+		Buffer& le(T *var) {
 			if (check(sizeof(T))) {
 				*var = endian(*((T*)head()), 1);
 				consume(sizeof(T));

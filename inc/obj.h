@@ -11,22 +11,22 @@ namespace lev {
 	class Object : public List {
 	protected:;
 		// construct with parent
-		inline Object(Object *o) : List() {
+		Object(Object *o) : List() {
 			linkto(o);
 		};
 		// unowned
-		inline Object() : List() { };
+		Object() : List() { };
 		virtual bool on_delete(Object *);
 	public:;
 		List children;
 		~Object();
 		template <typename UserType>
-		inline operator UserType*() {
+		operator UserType*() {
 			return static_cast<UserType*>(this);
 		};
 
 		template <typename FromType, typename ToType>
-		inline ToType& operator=(const FromType &src) {
+		ToType& operator=(const FromType &src) {
 			return static_cast<ToType&>(src);
 		};
 	};

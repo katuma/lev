@@ -8,7 +8,7 @@ namespace lev {
 
 	class IIOPoll : public Object {
 	public:;
-		inline IIOPoll(Object *o) : Object(o) {};
+		IIOPoll(Object *o) : Object(o) {};
 		IOPoll *add(ISocket *sock);
 		IOPoll *del(ISocket *sock);
 		IOPoll *enable_read(ISocket *s);

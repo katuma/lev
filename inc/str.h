@@ -15,11 +15,11 @@ namespace lev {
 	// strings are, in fact, vectors, padded with single 0
 	class String : public Vector<char_t, 1> {
 	public:;
-		inline String() : Vector<char_t,1>() {};
-		inline String(char_t *s) : Vector<char_t,1>() {
+		String() : Vector<char_t,1>() {};
+		String(char_t *s) : Vector<char_t,1>() {
 			copy(s, ::strlen(s));
 		}
-		inline String& operator=(const char *src) {
+		String& operator=(const char *src) {
 			//copy(src.p, src.getsize() / sz);
 			copy(src, ::strlen(src));
 			return *this;

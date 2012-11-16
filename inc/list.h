@@ -7,10 +7,10 @@ namespace lev {
 	class List {
 	public:;
 		List *prev, *next;		
-		inline List() : prev(this), next(this) {};
-		inline List(List *parent) : prev(this), next(this) { linkto(parent); };
+		List() : prev(this), next(this) {};
+		List(List *parent) : prev(this), next(this) { linkto(parent); };
 		// link `this` object into `parent`
-		inline List *linkto(List *parent) {	
+		List *linkto(List *parent) {	
 			this->next = parent->next;
 			this->prev = parent;
 			parent->next->prev = this;
@@ -18,7 +18,7 @@ namespace lev {
 			return this;
 		};
 		// remove `this` from parent
-		inline List *unlink()
+		List *unlink()
 		{
 			this->prev->next = this->next;
 			this->next->prev = this->prev;
@@ -28,13 +28,13 @@ namespace lev {
 		virtual ~List();
 		// automagically cast to covariant types
 		template <typename UserType>
-		inline operator UserType*() {
+		operator UserType*() {
 			return static_cast<UserType*>(this);
 		};
 
 		template <typename FromType, typename ToType>
 //		template <typename ToType>
-		inline ToType* operator=(const FromType *src) {
+		ToType* operator=(const FromType *src) {
 			return static_cast<ToType*>(src);
 		};
 	};

@@ -30,10 +30,10 @@ namespace lev {
 		Vector<ISocket *> sockmap;
 		Vector<uint> pfdmap;
 
-		inline int getfd(ISocket *sock) {
+		int getfd(ISocket *sock) {
 			return ((InetSocket *) sock)->h.fd;
 		}
-		inline void _register_sock(ISocket *sock, struct pollfd &pfd) {
+		void _register_sock(ISocket *sock, struct pollfd &pfd) {
 			sockmap[getfd(sock)] = sock;
 			if (usepoll) {
 				pfdmap[getfd(sock)] = pfds.size();
@@ -41,7 +41,7 @@ namespace lev {
 			}
 		}
 
-		inline short _calcevents(const int fd) {
+		short _calcevents(const int fd) {
 			u32 events = 0;
 			if (rset[fd])
 				events = POLLIN;
@@ -50,7 +50,7 @@ namespace lev {
 			return events | POLLERR | POLLHUP;
 		};
 		
-		inline void _recompute_pfds() {
+		void _recompute_pfds() {
 			pfdlast = now;
 			pfds.clear();
 			for (int i = 0; i < maxfd; i++) {
@@ -73,7 +73,7 @@ namespace lev {
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
-		inline IOPoll *_enable(Vector<bool> &set, const int fd) {
+		IOPoll *_enable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, true);
 				if (usepoll && !dirty)
@@ -82,7 +82,7 @@ namespace lev {
 			return this;
 		};
 
-		inline IOPoll *_disable(Vector<bool> &set, const int fd) {
+		IOPoll *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, false);
 				if (usepoll && !dirty)
@@ -91,7 +91,7 @@ namespace lev {
 			return this;
 		};
 
-		inline u64 _poll_poll(const int timeout) {
+		u64 _poll_poll(const int timeout) {
 			if (dirty)
 				_recompute_pfds();
 			int n = pfds.size();
@@ -115,7 +115,7 @@ namespace lev {
 		};
 		// poll for fds, runs callbacks, returns current timestamp.
 		// timeout is in milliseconds.
-		inline u64 _poll_select(const int timeout) {
+		u64 _poll_select(const int timeout) {
 			int res;
 			
 			struct timeval tv;
@@ -147,7 +147,7 @@ namespace lev {
 			return 0;
 		};
 
-		inline void _getnow() {
+		void _getnow() {
 			struct timeval tv;
 			gettimeofday(&tv, 0);
 			now = tv.tv_sec * 1000 + tv.tv_usec / 1000;
@@ -155,14 +155,14 @@ namespace lev {
 
 	public:;
 		u64 now;
-		inline IOPoll(Object *o) :
+		IOPoll(Object *o) :
 			IIOPoll(o),
 			dirty(false),
 			usepoll(false),
 			maxfd(0) {};
 
 		// register fd
-		inline IOPoll *add(ISocket *sock) {
+		IOPoll *add(ISocket *sock) {
 			int fd = getfd(sock);
 			assert(fd>=0);
 			if (++fd > maxfd) {
@@ -182,7 +182,7 @@ namespace lev {
 		};
 
 
-		inline IOPoll *del(ISocket *sock) {
+		IOPoll *del(ISocket *sock) {
 			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
@@ -199,19 +199,19 @@ namespace lev {
 
 		// NOTE: these are not a single monolithic function with boolean
 		// flags because that would just trash the branch predictor.
-		inline IOPoll *enable_read(ISocket *s) {
+		IOPoll *enable_read(ISocket *s) {
 			return _enable(rset, getfd(s));
 		};
 
-		inline IOPoll *disable_read(ISocket *s) {
+		IOPoll *disable_read(ISocket *s) {
 			return _disable(rset, getfd(s));
 		};
 
-		inline IOPoll *enable_write(ISocket *s) {
+		IOPoll *enable_write(ISocket *s) {
 			return _enable(wset, getfd(s));
 		};
 
-		inline IOPoll *disable_write(ISocket *s) {
+		IOPoll *disable_write(ISocket *s) {
 			return _disable(wset, getfd(s));
 		};
 		

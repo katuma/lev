@@ -17,7 +17,7 @@ protected:;
 		void _reserve(uint nsz);
 		uint _ensure(uint size, uint sz);
 		void _insert(uint into, void *val, uint repeat, uint sz, uint pad);
-		inline VectorBase() : p(0) {};
+		VectorBase() : p(0) {};
 public:;
 		void *p;
 		uint pos; // in elements, not bytes
@@ -25,28 +25,28 @@ public:;
 		// no _msize() - we have keep track
 #ifndef _MSIZE_HACK
 		uint alloc_size;
-		inline uint getsize() const {
+		uint getsize() const {
 			return alloc_size;
 		}
-		inline uint setsize(uint n) {
+		uint setsize(uint n) {
 			return (alloc_size = n);
 		}
 #else
 #ifdef _MSIZE_DLMALLOC
-		inline uint getsize() {
+		uint getsize() {
 			(!p) return 0;
 			// uber-UB
 			return ((size_t *)(p))[-1];
 		}
 
 #elif defined(_MSIZE_WIN32)
-		inline getsize() {
+		getsize() {
 			(!p) return 0;
 			return _msize(p);
 		}
 #endif
 		// this will hopefully bail
-		inline setsize(uint n) {
+		setsize(uint n) {
 			assert(n == getsize());
 			return n;
 		}
@@ -54,18 +54,18 @@ public:;
 
 public:;
 		// check if empty
-		inline bool empty() {
+		bool empty() {
 			return !pos;
 		}
 		// return maximum size
-		inline uint max_size() {
+		uint max_size() {
 			return INT_MAX;
 		}
 		// return size
-		inline uint size() {
+		uint size() {
 			return pos;
 		}
-		inline ~VectorBase() {
+		~VectorBase() {
 			if (p) free(p);
 		}
 	};
@@ -79,18 +79,18 @@ public:;
 
 		typedef T* iterator;
 	public:;
-		inline Vector() : VectorBase() {};
-		inline Vector(Vector &s) : VectorBase() {
+		Vector() : VectorBase() {};
+		Vector(Vector &s) : VectorBase() {
 			copy(s);
 		}
 
 		// amount of available space
-		inline uint avail() {
+		uint avail() {
 			return capacity() - pos;
 		}
 				
 		// append array of elements. no padding.
-		inline Vector& append(const T *ptr, uint plen) {
+		Vector& append(const T *ptr, uint plen) {
 			uint nsz = _ensure(plen, sz);
 			memcpy(P + pos, ptr, nsz);
 			pos += plen;
@@ -98,7 +98,7 @@ public:;
 		}
 
 		// return elm at n. negative indexes are valid.
-		inline T& at(int n) {
+		T& at(int n) {
 			if (n < 0)
 				n+=pos;
 			return P[n];
@@ -106,91 +106,91 @@ public:;
 
 
 		// assign repeated element
-		/*inline Vector<T>& assign(const uint repeat, const &T val) {
+		/*Vector<T>& assign(const uint repeat, const &T val) {
 			pos = 0;
 			_insert(0, &val, repeat, sz, pad);
 			return this;
 		}*/
 		
 		// return last element
-		inline T& back() {
+		T& back() {
 			return at(-1);
 		}
 
 
 		// return first iterator
-		inline iterator begin() {
+		iterator begin() {
 			return P;
 		}
 		
 		// storage available
-		inline uint capacity() {
+		uint capacity() {
 			return getsize()/sz;
 		}
 
 		// clear elements
-		inline Vector& clear() {
+		Vector& clear() {
 			pos = 0;
 			return *this;
 		}
 
 
 		// return end of vector
-		inline iterator end() {
+		iterator end() {
 			return P + pos;
 		}
 
 		// erase elements
-		inline iterator erase(iterator first, iterator last) {
+		iterator erase(iterator first, iterator last) {
 			memmove(first, last, (&P[pos] - last) * sz);
 			pos = first - P;
 			return first;
 		}
 
 		// erase element
-		inline iterator erase(iterator first) {
+		iterator erase(iterator first) {
 			return erase(first, first + 1);
 		}
 
 		// first element
-		inline T& front() {
+		T& front() {
 			return at(0);
 		}
 
 		// XXX allocators not implemented
 		
 		// insert element at position
-		inline Vector& insert(iterator position, uint n, const T& x) {
+		Vector& insert(iterator position, uint n, const T& x) {
 			_insert(position, &x, n, sz, pad);
 			return *this;
 		}
 		
 		// pad
-		inline Vector<T>& addpad() {
+		Vector<T>& addpad() {
 			memset(P + pos, 0, pad+sz);			
 			return *this;
 		}
 
 		// copy elements
-		inline Vector& copy(const T *src, uint len) {
+		Vector& copy(const T *src, uint len) {
 			pos = len;
 			_reserve((len+pad) * sz);
 			memcpy(p, src, len * sz);;
 			return *this;
 		}
 
-		inline Vector& copy(const Vector<T>&src) {
+		Vector& copy(const Vector<T>&src) {
 			copy(src.p, src.getsize() / sz);
 			return this;
 		}
 
 		// index element
-		inline T& operator[](int idx) {
+		T& operator[](int idx) {
 			return at(idx);
 		}
 
 		// remove and return last element
-		inline T& pop_back() {
+		T& pop_back() {
 			T &val = P[--pos];
 			addpad();
 			return val;
@@ -205,13 +205,13 @@ public:;
 		}
 
 		// reserve buffer for n elms
-		inline Vector<T>& reserve(const uint n) {
+		Vector<T>& reserve(const uint n) {
 			_reserve((n+sz)*sz);
 			return *this;
 		}
 
 		// resize vector
-		inline Vector<T>& resize(uint n, T &val) {
+		Vector<T>& resize(uint n, T &val) {
 			if (n <= pos) {
 				pos = n;
 				addpad();
@@ -223,7 +223,7 @@ public:;
 		}
 		
 		// swap
-		inline Vector<T>& swap(Vector<T> &other) {
+		Vector<T>& swap(Vector<T> &other) {
 			void *tmp = p;
 			uint tmpsize = getsize();
 			p = other.p;
@@ -241,81 +241,81 @@ public:;
 		static const uint sz = sizeof(T);
 		static const uint factor = sz * 8;
 
-		inline const ulong _mask(uint n) {
+		const ulong _mask(uint n) {
 			return 1<<(n % factor);
 		}
 
-		inline const uint _word(uint n) {
+		const uint _word(uint n) {
 			return n / factor;
 		}
 
 		// take number of bits, align to word and return number of bytes
-		inline const uint _align(uint n) {
+		const uint _align(uint n) {
 			return _word(n + (factor-1)) * sz;
 		}
 
 	public:;
-		inline Vector() : VectorBase() {};
+		Vector() : VectorBase() {};
 
 		// amount of available space
-		inline uint avail() {
+		uint avail() {
 			return capacity() - pos;
 		}
 
 		// return elm at n. negative indexes are valid.
-		inline bool at(int n) {
+		bool at(int n) {
 			if (n < 0)
 				n+=pos;
 			return P[_word(n)] % _mask(n);
 		}
 
 		// return last element
-		inline const bool back() {
+		const bool back() {
 			return at(-1);
 		}
 
 		// storage available
-		inline uint capacity() {
+		uint capacity() {
 			return getsize() * factor;
 		}
 		
 		// clear elements
-		inline Vector<bool>& clear() {
+		Vector<bool>& clear() {
 			pos = 0;
 			return *this;
 		}
 
 		// first element
-		inline const bool front() {
+		const bool front() {
 			return at(0);
 		}
 
 		// XXX allocators not implemented
 
 
-		inline Vector<bool>& copy(const Vector<bool>&src) {
+		Vector<bool>& copy(const Vector<bool>&src) {
 			_reserve(src.getsize());
 			memcpy(p, src.p, _align(src.pos));
 			return *this;
 		}
 
-		inline const Vector<bool>& operator=(const Vector<bool>&src) {
+		const Vector<bool>& operator=(const Vector<bool>&src) {
 			copy(src);
 			return src; // what about `this`?
 		}
 
 		// index element
-		inline bool operator[](const int idx) {
+		bool operator[](const int idx) {
 			return at(idx);
 		}
 
 		// remove and return last element
-		inline bool pop_back() {
+		bool pop_back() {
 			return at(--pos);
 		}
 
 		// set bit
-		inline void setat(uint pos, bool val) {
+		void setat(uint pos, bool val) {
 			if (val)
 				P[_word(pos)] |= _mask(pos);
 			else
@@ -330,13 +330,13 @@ public:;
 		}
 
 		// reserve buffer for n elms
-		inline Vector<bool>& reserve(const uint n) {
+		Vector<bool>& reserve(const uint n) {
 			_reserve(_align(n));
 			return *this;
 		}
 
 		// resize vector
-		inline Vector<bool>& resize(uint n, bool val) {
+		Vector<bool>& resize(uint n, bool val) {
 			if (n <= pos) {
 				pos = n;
 				return *this;
@@ -348,12 +348,12 @@ public:;
 		}
 		
 		// return size
-		inline uint size() {
+		uint size() {
 			return pos;
 		}
 		
 		// swap
-		inline Vector<bool>& swap(Vector<bool> &other) {
+		Vector<bool>& swap(Vector<bool> &other) {
 			void *tmp = p;
 			uint tmpsize = getsize();
 			p = other.p;

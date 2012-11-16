@@ -20,9 +20,9 @@ namespace lev {
 		int pipe(Handle *h);
 		int socketpair(Handle *h, const int d, const int t, const int p);
 		int bind(ISockAddr *addr);
-		int connect(ISockAddr &addr);
+		int connect(const ISockAddr &addr);
 		int recv(u8 *buf, u32 *len);
-		int send(u8 *buf, u32 *len);
+		int send(const u8 *buf, u32 *len);
 		void errnostr(const int, String *s);
 	};
 }

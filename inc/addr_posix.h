@@ -7,14 +7,14 @@ namespace lev {
 	// a posix socket address
 	class ISockAddr : public IAddr {
 	public:;
-		inline ISockAddr() { };
-		inline ISockAddr(const short family) {
+		ISockAddr() { };
+		ISockAddr(const short family) {
 			sa.sa_family = family;
 		};
-		inline ISockAddr(const struct sockaddr &s) {
+		ISockAddr(const struct sockaddr &s) {
 			sa = s;
 		};
-		inline IAddr *clone() {
+		IAddr *clone() {
 			IAddr *ia = new ISockAddr(this->sa);
 			ia->linkto(this);
 			return ia;

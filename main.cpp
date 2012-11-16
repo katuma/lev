@@ -2,11 +2,11 @@
 #include "sock.h"
 #include "str.h"
 
-using lev;
+using namespace lev;
 
-class SOCKSRemote : public TCPSocket {
+class SOCKSRemote : public Buffered<TCPSocket> {
 public:;
-    ISocket *client;
+    Buffered<TCPSocket> *client;
 	void on_data(IOLoop *io, u8 *buf, u32 len, IAddr *from) {
 		if (client->ok) {
 			client->output->pipe(input)
@@ -19,15 +19,16 @@ public:;
 		client->flush();
     }
     void on_close(IOLoop *io, Object *parent) {
+        // we dont own client, hence explicit close
         client->close();
     }
 }
 
 
-class SOCKSClient : public TCPSocket {
+class SOCKSClient : public Buffered<TCPSocket> {
 public:;
-	SOCKSClient() : TCPSocket(), ok(false) {};
-	TCPSocket *conn;
+	SOCKSClient() : Buffered<TCPSocket>(), ok(false) {};
+	Buffered<TCPSocket> *conn;
 	bool ok;
 	void on_flush(IOLoop *io) {
 		// short-circuit the two
@@ -36,7 +37,7 @@ public:;
 		ok = true;
 	}
 	
-	void on_data(IOLoop *io, u8 *buf, u32 len, IAddr *from) {
+	void on_data(IOLoop *io, const u8 *buf, const u32 len, const IAddr &from) {
         u8 ver, cmd;
         u32 dstip;
         u16 dstport;
@@ -48,7 +49,7 @@ public:;
 			return;
 		}
 
-        if (!client->input.unpack(&pos).be(&ver).be(&cmd).be(&dstip).str_z(userid).commit(pos))
+        if (!client->input.unpack(&pos).be(&ver).be(&cmd).be(&dstip).str_z(&userid).commit(pos))
             return;
         if (ver != 4)
             kill << "unknown protocol ver " + ver;
@@ -66,11 +67,12 @@ public:;
         // socks4a marker - unpack hostname
         if (dstip&0xffffff00==0)
             // unpack the hostname requested
-            if (!input.unpack().str_z(remote).commit(pos))
+            if (!input.unpack().str_z(&remote).commit(pos))
                 return;
             else if remote.empty()
                 kill << "socks4a hostname should not be empty";
 		pause();
+        // implies our ownership of 'conn'
         conn = create<SOCKSRemote>();
         conn->client = this;
 		conn->pause();

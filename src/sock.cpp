@@ -27,7 +27,7 @@ namespace lev {
 	}
 
 	// connect to an address
-	ISocket *InetSocket::connect(IOPoll *io, IAddr &a) {
+	ISocket *InetSocket::connect(IOPoll *io, const IAddr &a) {
 		//assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
 		assert(dynamic_cast<ISockAddr*>(&a));
 		ISockAddr *sa = (ISockAddr*)&a;
@@ -51,7 +51,7 @@ namespace lev {
 
 
 	// class TCPSocket
-	int _TCPSocket::send(IOPoll *io, u8 *packet, u32 *len, String *msg) {
+	int TCPSocket::send(IOPoll *io, const u8 *packet, u32 *len, String *msg) {
 		if (!*len) {
 			io->disable_write(this);
 			return 0;
@@ -63,10 +63,10 @@ namespace lev {
 		}
 		if (!err && !*len)
 			err = ECONNRESET;
-		if (err && msg) h.errnostr(err, *msg);
+		if (err && msg) h.errnostr(err, msg);
 		return err;
 	}
-	int _TCPSocket::recv(IOPoll *io, u8 *packet, u32 *len, String *msg) {
+	int TCPSocket::recv(IOPoll *io, u8 *packet, u32 *len, String *msg) {
 		int err = h.recv(packet, len);
 		if (err == EWOULDBLOCK)
 			return 0;

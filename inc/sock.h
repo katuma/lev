@@ -25,10 +25,10 @@ namespace lev {
 	
 	class SockEvent : public List {
 	public:;
-		inline SockEvent(EventType et) : List(), type(et) {};
+		SockEvent(EventType et) : List(), type(et) {};
 		EventType type;
 		EventCB *cb;
-		inline SockEvent *setcb(EventCB *c) {
+		SockEvent *setcb(EventCB *c) {
 			cb = c;
 			return this;
 		}
@@ -69,7 +69,7 @@ namespace lev {
 	class ISocket : public Object {
 
 	protected:;
-		inline ISocket() : flags(NONE) {};
+		ISocket() : flags(NONE) {};
 
 		u32 flags;
 	public:;
@@ -91,23 +91,24 @@ namespace lev {
 		virtual void on_error(IOPoll *, String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
 		virtual int recv(IOPoll *, u8 *, uint *, String *) = 0;
-		virtual int send(IOPoll *, u8 *, uint *, String *) = 0;
-		inline int recv(IOPoll *io, u8 *b, uint *len) {
+		virtual int send(IOPoll *, const u8 *, uint *, String *) = 0;
+		
+		int recv(IOPoll *io, u8 *b, uint *len) {
 			return recv(io, b, len, 0);
 		}
-		inline int send(IOPoll *io, u8 *b, uint *len) {
-			return recv(io, b, len, 0);
+		int send(IOPoll *io, const u8 *b, uint *len) {
+			return send(io, b, len, 0);
 		}
-		inline void setflags(u32 f) {
+		void setflags(u32 f) {
 			flags = f;
 		}
-		inline void setflag(const SockFlags f) {
+		void setflag(const SockFlags f) {
 			flags |= 1<<f;
 		}
-		inline bool hasflag(const SockFlags f) {
+		bool hasflag(const SockFlags f) {
 			return (flags & (1<<f))!=0;
 		}
-		inline void clearflag(const SockFlags f) {
+		void clearflag(const SockFlags f) {
 			flags &= ~(1<<f);
 		}
 	};
@@ -151,7 +152,7 @@ namespace lev {
 	};
 
 	template <class Base>
-	class TBufferedSocket : public Base {
+	class Buffered : public Base {
 	protected:;
 		static const int READ_CHUNK = 4096;
 		Buffer input;
@@ -163,8 +164,8 @@ namespace lev {
 		using Base::hasflag;
 		using Base::setflag;
 		using Base::clearflag;
-		inline void flush(IOPoll *io) {
-			if (output.empty())
+		void flush(IOPoll *io) {
+			if (!output.empty())
 				on_write(io);
 		}
 		void on_read(IOPoll *io) {
@@ -182,17 +183,17 @@ namespace lev {
 			if (hasflag(CONNECTING)) {
 				clearflag(CONNECTING);
 				setflag(CONNECTED);
-				if (!output.bytes()) return;
+				if (wasempty) return;
 			}
 			if (int err = send(io, output.head(&len), &len, &s))
 				return on_error(io, s, err);
 			output.consume(len);
+            // transitioned to empty -> notify owner data have been flushed
 			if (!wasempty && output.empty())
 				on_flush(io);			
 		}
 	};
-	
-	typedef TBufferedSocket<_TCPSocket> TCPSocket;
+
 //	typedef LambdaHandlers<TBufferedSocket<_TCPSocket>> LTCPSocket;
 }
 #endif

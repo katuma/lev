@@ -1,6 +1,4 @@
-#include "buf.h"
-#include "sock.h"
-#include "str.h"
+#include <lev>
 #if 0
 
 using namespace lev;

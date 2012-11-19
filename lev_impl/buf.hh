@@ -36,10 +36,10 @@ namespace lev {
 
 	// buffer for input and output.
 	class Buffer : public Vector<u8> {
+	private:;
 		static const uint BUF_CHUNK = 4096;
 		static const uint BUF_COMPACT = 256*1024;
 		static const uint BUF_ERROR = (uint)(-1);
-	protected:;
 	public:;
 		u32 bufhead; // read head
 		Buffer() : Vector(), bufhead(0) { };

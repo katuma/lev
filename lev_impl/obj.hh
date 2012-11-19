@@ -9,16 +9,6 @@ namespace lev {
 
 	// base class of acyclic Object graph.
 	class Object : public List {
-	protected:;
-		// construct with parent
-		Object(Object *o) : List() {
-			linkto(o);
-		};
-		// unowned
-		Object() : List() { };
-		virtual bool on_delete(Object *) {
-			return true;
-		}
 	public:;
 		List children;
 		~Object() {
@@ -39,6 +29,16 @@ namespace lev {
 		ToType& operator=(const FromType &src) {
 			return static_cast<ToType&>(src);
 		};
+	protected:;
+		// construct with parent
+		Object(Object *o) : List() {
+			linkto(o);
+		};
+		// unowned
+		Object() : List() { };
+		virtual bool on_delete(Object *) {
+			return true;
+		}
 	};
 };
 

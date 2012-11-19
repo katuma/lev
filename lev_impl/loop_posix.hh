@@ -12,10 +12,78 @@ namespace lev {
 	// other than EINTR & friends, we'll switch to poll.
 	class ISocket;
 	class IOLoop : public IIOLoop {
-
 	private:;
 		// poll() makes more sense after this (>4kb fdsets).
 		const int SELECT_CUTOFF = 16384;
+	public:;
+		u64 now;
+		IOLoop(Object *o) :
+			IIOLoop(o),
+			dirty(false),
+			usepoll(false),
+			maxfd(0) {};
+
+		// register fd
+		IOLoop *add(ISocket *sock) {
+			int fd = getfd(sock);
+			assert(fd>=0);
+			if (++fd > maxfd) {
+				maxfd = fd;
+				if (!usepoll && fd > SELECT_CUTOFF)
+					dirty = usepoll = true;
+				rset.resize(maxfd, false);
+				wset.resize(maxfd, false);
+				sockmap.reserve(maxfd);
+				pfdmap.reserve((maxfd));
+			}
+			if (usepoll) {
+				struct pollfd pf = {0};
+				_register_sock(sock, pf);
+			}
+			return this;
+		};
+
+
+		IOLoop *del(ISocket *sock) {
+			//sockmap.erase(getfd(sock));
+			disable_read(sock);
+			disable_write(sock);
+			if (usepoll && !dirty) {
+				if (pfds.back().fd != getfd(sock))
+					dirty = true;
+				else
+					pfds.pop_back();
+			}
+			sockmap[getfd(sock)] = 0;
+			return this;
+		};
+
+
+		// NOTE: these are not a single monolithic function with boolean
+		// flags because that would just trash the branch predictor.
+		IOLoop *enable_read(ISocket *s) {
+			return _enable(rset, getfd(s));
+		};
+
+		IOLoop *disable_read(ISocket *s) {
+			return _disable(rset, getfd(s));
+		};
+
+		IOLoop *enable_write(ISocket *s) {
+			return _enable(wset, getfd(s));
+		};
+
+		IOLoop *disable_write(ISocket *s) {
+			return _disable(wset, getfd(s));
+		};
+		
+		u64 poll(int timeout) {
+			if (usepoll)
+				return _poll_poll(timeout);
+			return _poll_select(timeout);
+		}
+
+	private:;
 
 		bool dirty;
 		bool usepoll;
@@ -29,7 +97,9 @@ namespace lev {
 		Vector<ISocket *> sockmap;
 		Vector<uint> pfdmap;
 
-		int getfd(ISocket *sock);
+		int getfd(ISocket *sock) {
+			return gethandle(sock).fd;
+		}
 		void _register_sock(ISocket *sock, struct pollfd &pfd) {
 			sockmap[getfd(sock)] = sock;
 			if (usepoll) {
@@ -150,73 +220,7 @@ namespace lev {
 			now = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 		};
 
-	public:;
-		u64 now;
-		IOLoop(Object *o) :
-			IIOLoop(o),
-			dirty(false),
-			usepoll(false),
-			maxfd(0) {};
 
-		// register fd
-		IOLoop *add(ISocket *sock) {
-			int fd = getfd(sock);
-			assert(fd>=0);
-			if (++fd > maxfd) {
-				maxfd = fd;
-				if (!usepoll && fd > SELECT_CUTOFF)
-					dirty = usepoll = true;
-				rset.resize(maxfd, false);
-				wset.resize(maxfd, false);
-				sockmap.reserve(maxfd);
-				pfdmap.reserve((maxfd));
-			}
-			if (usepoll) {
-				struct pollfd pf = {0};
-				_register_sock(sock, pf);
-			}
-			return this;
-		};
-
-
-		IOLoop *del(ISocket *sock) {
-			//sockmap.erase(getfd(sock));
-			disable_read(sock);
-			disable_write(sock);
-			if (usepoll && !dirty) {
-				if (pfds.back().fd != getfd(sock))
-					dirty = true;
-				else
-					pfds.pop_back();
-			}
-			sockmap[getfd(sock)] = 0;
-			return this;
-		};
-
-
-		// NOTE: these are not a single monolithic function with boolean
-		// flags because that would just trash the branch predictor.
-		IOLoop *enable_read(ISocket *s) {
-			return _enable(rset, getfd(s));
-		};
-
-		IOLoop *disable_read(ISocket *s) {
-			return _disable(rset, getfd(s));
-		};
-
-		IOLoop *enable_write(ISocket *s) {
-			return _enable(wset, getfd(s));
-		};
-
-		IOLoop *disable_write(ISocket *s) {
-			return _disable(wset, getfd(s));
-		};
-		
-		u64 poll(int timeout) {
-			if (usepoll)
-				return _poll_poll(timeout);
-			return _poll_select(timeout);
-		}
 	};
 }
 

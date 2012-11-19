@@ -6,6 +6,8 @@ namespace lev {
 	class IOLoop;
 
 	class IIOLoop : public Object {
+	protected:;
+		Handle &gethandle(ISocket *sock);
 	public:;
 		IIOLoop(Object *o) : Object(o) {};
 		IOLoop *add(ISocket *sock);

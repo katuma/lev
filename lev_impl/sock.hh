@@ -227,10 +227,6 @@ namespace lev {
 
 	template <class Base>
 	class Buffered : public Base {
-	protected:;
-		static const int READ_CHUNK = 4096;
-		Buffer input;
-		Buffer output;
 	public:;
 		using Base::on_error;
 		using Base::on_data;
@@ -268,11 +264,15 @@ namespace lev {
 			if (!wasempty && output.empty())
 				on_flush(io);			
 		}
+	protected:;
+		static const int READ_CHUNK = 4096;
+		Buffer input;
+		Buffer output;
 	};
 
-//	typedef LambdaHandlers<TBufferedSocket<_TCPSocket>> LTCPSocket;
-	int IOLoop::getfd(ISocket *sock) {
-		return ((InetSocket *) sock)->h.fd;
+	// hackety hack - breaks ISocket <-> IOLoop circular dependency
+	inline Handle &IIOLoop::gethandle(ISocket *sock) {
+		return ((InetSocket *) sock)->h;
 	}
 }
 #endif

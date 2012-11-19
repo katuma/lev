@@ -1,4 +1,7 @@
 #include <lev>
+
+using namespace lev;
+
 #if 0
 
 using namespace lev;
@@ -101,4 +104,10 @@ int main(int argc, char **argv)
 	loop->run();
 }
 #endif
-int main(){}
+
+int main(int argc, char const *argv[])
+{
+	/* code */
+	return 0;
+}
+

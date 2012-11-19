@@ -16,10 +16,20 @@ namespace lev {
 		};
 		// unowned
 		Object() : List() { };
-		virtual bool on_delete(Object *);
+		virtual bool on_delete(Object *) {
+			return true;
+		}
 	public:;
 		List children;
-		~Object();
+		~Object() {
+			Object *c;
+			// delete children until list is empty
+			while ((c = (Object*)children.next) != this)
+				if (c->on_delete(this))
+					delete c;
+				else assert(children.next != c);
+		}
+
 		template <typename UserType>
 		operator UserType*() {
 			return static_cast<UserType*>(this);

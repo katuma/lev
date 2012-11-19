@@ -14,9 +14,30 @@ namespace lev {
 	// common vector class
 	class VectorBase {
 protected:;
-		void _reserve(uint nsz);
-		uint _ensure(uint size, uint sz);
-		void _insert(uint into, void *val, uint repeat, uint sz, uint pad);
+		void _reserve(uint nsz) {
+			uint old = getsize();
+			if (old >= nsz) return;
+			p = realloc(p, setsize(nsz));
+		}
+		uint _ensure(uint nelm, uint sz) {
+			_reserve((pos+nelm) * sz);
+			return nelm * sz;
+		}
+		void _insert(uint into, void *val, uint repeat, uint sz, uint pad) {
+			// reserve enough space
+			_reserve((pos + repeat + pad) * sz);
+			// shuffle the data around
+			u8 *ptr = ((u8*)p)+(into*sz);
+			uint tomove = pos - into;
+			pos += repeat;
+			memmove(ptr + repeat*sz, ptr, tomove);
+			// fill, XXX val might be an iterator in the future
+			while (repeat--) {
+				memcpy(ptr, val, sz);
+				ptr += sz;
+			}
+			if (tomove) memset(ptr, 0, pad * sz);
+		}
 		VectorBase() : p(0) {};
 public:;
 		void *p;
@@ -70,10 +91,14 @@ public:;
 		}
 	};
 	
-#define P static_cast<T*>(p)
 	template <typename T, uint pad = 0>
 	class Vector : public VectorBase {
+    private:;
 	protected:;
+        T* P() {
+            return static_cast<T*>(p);
+        }
+
 		static const uint sz = sizeof(T);
 		static const uint factor = sz * 8;
 
@@ -92,7 +117,7 @@ public:;
 		// append array of elements. no padding.
 		Vector& append(const T *ptr, uint plen) {
 			uint nsz = _ensure(plen, sz);
-			memcpy(P + pos, ptr, nsz);
+			memcpy(P() + pos, ptr, nsz);
 			pos += plen;
 			return *this;
 		}
@@ -101,7 +126,7 @@ public:;
 		T& at(int n) {
 			if (n < 0)
 				n+=pos;
-			return P[n];
+			return P()[n];
 		}
 
 
@@ -120,7 +145,7 @@ public:;
 
 		// return first iterator
 		iterator begin() {
-			return P;
+			return P();
 		}
 		
 		// storage available
@@ -137,13 +162,13 @@ public:;
 
 		// return end of vector
 		iterator end() {
-			return P + pos;
+			return P() + pos;
 		}
 
 		// erase elements
 		iterator erase(iterator first, iterator last) {
-			memmove(first, last, (&P[pos] - last) * sz);
-			pos = first - P;
+			memmove(first, last, (&P()[pos] - last) * sz);
+			pos = first - P();
 			return first;
 		}
 
@@ -167,7 +192,7 @@ public:;
 		
 		// pad
 		Vector<T>& addpad() {
-			memset(P + pos, 0, pad+sz);			
+			memset(P() + pos, 0, pad+sz);			
 			return *this;
 		}
 
@@ -191,7 +216,7 @@ public:;
 
 		// remove and return last element
 		T& pop_back() {
-			T &val = P[--pos];
+			T &val = P()[--pos];
 			addpad();
 			return val;
 		}
@@ -199,7 +224,7 @@ public:;
 		// push element to the end, and return it's iterator
 		Vector<T>& push_back(T &val) {
 			_ensure(1 + pad, sz);
-			P[pos++] = val;
+			P()[pos++] = val;
 			addpad();
 			return *this;
 		}
@@ -236,6 +261,10 @@ public:;
 
 	template<>
 	class Vector<bool> : public VectorBase {
+    private:;
+        ulong* P() {
+            return static_cast<ulong*>(p);
+        }
 	protected:;
 		typedef ulong T;
 		static const uint sz = sizeof(T);
@@ -266,7 +295,7 @@ public:;
 		bool at(int n) {
 			if (n < 0)
 				n+=pos;
-			return P[_word(n)] % _mask(n);
+			return P()[_word(n)] % _mask(n);
 		}
 
 		// return last element
@@ -317,9 +346,9 @@ public:;
 		// set bit
 		void setat(uint pos, bool val) {
 			if (val)
-				P[_word(pos)] |= _mask(pos);
+				P()[_word(pos)] |= _mask(pos);
 			else
-				P[_word(pos)] &= ~_mask(pos);			
+				P()[_word(pos)] &= ~_mask(pos);			
 		}
 
 		// push element to the end, and return it's iterator
@@ -363,7 +392,6 @@ public:;
 			return *this;
 		}
 	};
-#undef P	
 }
 
 #endif

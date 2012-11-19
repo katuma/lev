@@ -1,18 +1,17 @@
-#define _LEV_POLL_POSIX_H
+#define _LEV_LOOP_POSIX_H
 
 //#include <unordered_map>
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/time.h>
 
-#include "sock.h"
-
 
 namespace lev {
 	// A posix-compliant, hybrid cross-platform select()/poll().
 	// select() uses hacked FD_SETSIZE. If kernel returns an error
 	// other than EINTR & friends, we'll switch to poll.
-	class IOPoll : public IIOPoll {
+	class ISocket;
+	class IOLoop : public IIOLoop {
 
 	private:;
 		// poll() makes more sense after this (>4kb fdsets).
@@ -30,9 +29,7 @@ namespace lev {
 		Vector<ISocket *> sockmap;
 		Vector<uint> pfdmap;
 
-		int getfd(ISocket *sock) {
-			return ((InetSocket *) sock)->h.fd;
-		}
+		int getfd(ISocket *sock);
 		void _register_sock(ISocket *sock, struct pollfd &pfd) {
 			sockmap[getfd(sock)] = sock;
 			if (usepoll) {
@@ -73,7 +70,7 @@ namespace lev {
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
-		IOPoll *_enable(Vector<bool> &set, const int fd) {
+		IOLoop *_enable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, true);
 				if (usepoll && !dirty)
@@ -82,7 +79,7 @@ namespace lev {
 			return this;
 		};
 
-		IOPoll *_disable(Vector<bool> &set, const int fd) {
+		IOLoop *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, false);
 				if (usepoll && !dirty)
@@ -155,14 +152,14 @@ namespace lev {
 
 	public:;
 		u64 now;
-		IOPoll(Object *o) :
-			IIOPoll(o),
+		IOLoop(Object *o) :
+			IIOLoop(o),
 			dirty(false),
 			usepoll(false),
 			maxfd(0) {};
 
 		// register fd
-		IOPoll *add(ISocket *sock) {
+		IOLoop *add(ISocket *sock) {
 			int fd = getfd(sock);
 			assert(fd>=0);
 			if (++fd > maxfd) {
@@ -182,7 +179,7 @@ namespace lev {
 		};
 
 
-		IOPoll *del(ISocket *sock) {
+		IOLoop *del(ISocket *sock) {
 			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
@@ -199,23 +196,27 @@ namespace lev {
 
 		// NOTE: these are not a single monolithic function with boolean
 		// flags because that would just trash the branch predictor.
-		IOPoll *enable_read(ISocket *s) {
+		IOLoop *enable_read(ISocket *s) {
 			return _enable(rset, getfd(s));
 		};
 
-		IOPoll *disable_read(ISocket *s) {
+		IOLoop *disable_read(ISocket *s) {
 			return _disable(rset, getfd(s));
 		};
 
-		IOPoll *enable_write(ISocket *s) {
+		IOLoop *enable_write(ISocket *s) {
 			return _enable(wset, getfd(s));
 		};
 
-		IOPoll *disable_write(ISocket *s) {
+		IOLoop *disable_write(ISocket *s) {
 			return _disable(wset, getfd(s));
 		};
 		
-		u64 poll(int timeout);
+		u64 poll(int timeout) {
+			if (usepoll)
+				return _poll_poll(timeout);
+			return _poll_select(timeout);
+		}
 	};
 }
 

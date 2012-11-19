@@ -7,11 +7,7 @@
 
 
 namespace lev {
-	//
-	// Interface ISocket and it's implementations
-	// Actual sockets
-	//
-	class IOPoll;
+	class IOLoop;
 	class ISocket;
 	
 	enum EventType {
@@ -73,29 +69,31 @@ namespace lev {
 		u32 flags;
 	public:;
 		virtual ~ISocket();
+		virtual ISocket *bind(IOLoop *, IAddr *) = 0;
+		virtual ISocket *connect(IOLoop *, const IAddr &) = 0;
 
-		virtual ISocket *bind(IOPoll *, IAddr *) = 0;
-		virtual ISocket *connect(IOPoll *, const IAddr &) = 0;
+		virtual ISocket *bind(IOLoop *, const String &, int);
+		virtual ISocket *connect(IOLoop *, const String &, int);
 
-		virtual ISocket *bind(IOPoll *, const String &, int);
-		virtual ISocket *connect(IOPoll *, const String &, int);
-
-		virtual void poll(IOPoll *io, bool r, bool w);
+		virtual void poll(IOLoop *io, bool r, bool w) {
+			if (r) on_read(io);
+			if (w) on_write(io);
+		}
 		
 		// event handlers. switch to virtual only if needed.
-		virtual void on_data(IOPoll *, const u8 *, u32, const IAddr &) = 0;
-		virtual void on_read(IOPoll *) = 0;
-		virtual void on_write(IOPoll *) = 0;
-		virtual void on_flush(IOPoll *) = 0;
-		virtual void on_error(IOPoll *, const String &, const int) = 0;
+		virtual void on_data(IOLoop *, const u8 *, u32, const IAddr &) = 0;
+		virtual void on_read(IOLoop *) = 0;
+		virtual void on_write(IOLoop *) = 0;
+		virtual void on_flush(IOLoop *) = 0;
+		virtual void on_error(IOLoop *, const String &, const int) = 0;
 		virtual bool on_close(Object *) = 0;
-		virtual int recv(IOPoll *, u8 *, uint *, String *) = 0;
-		virtual int send(IOPoll *, const u8 *, uint *, String *) = 0;
+		virtual int recv(IOLoop *, u8 *, uint *, String *) = 0;
+		virtual int send(IOLoop *, const u8 *, uint *, String *) = 0;
 		
-		int recv(IOPoll *io, u8 *b, uint *len) {
+		int recv(IOLoop *io, u8 *b, uint *len) {
 			return recv(io, b, len, 0);
 		}
-		int send(IOPoll *io, const u8 *b, uint *len) {
+		int send(IOLoop *io, const u8 *b, uint *len) {
 			return send(io, b, len, 0);
 		}
 		void setflags(u32 f) {
@@ -112,43 +110,119 @@ namespace lev {
 		}
 	};
 
+}
+
+#include "loop.hh"
+
+namespace lev {
+
 	class InetSocket : public ISocket {
 	protected:;
 	public:;
 		Handle h;
-		ISocket *bind(IOPoll *, const String &, int);
-		ISocket *connect(IOPoll *, const String &, int);
+		ISocket *bind(IOLoop *, const String &, int);
+		ISocket *connect(IOLoop *, const String &, int);
 
-		ISocket *bind(IOPoll *, IAddr *);
-		ISocket *connect(IOPoll *, const IAddr &);
-		using ISocket::connect;
+		ISocket *bind(IOLoop *io, IAddr *a) {
+			assert(dynamic_cast<ISockAddr*>(a));
+			ISockAddr *sa = (ISockAddr*)a;
+			if (h.bind(*sa))
+				setflag(ERROR);
+			else setflag(BOUND);
+			return this;
+		}
+		ISocket *connect(IOLoop *io, const IAddr &a) {
+			//assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
+			assert(dynamic_cast<const ISockAddr*>(&a));
+			ISockAddr *sa = (ISockAddr*)&a;
+			if (h.connect(*sa)) {
+				if (errno == EINPROGRESS) {
+					io->enable_write(this);
+					setflag(CONNECTING);
+				} else setflag(ERROR);
+			} else setflag(CONNECTED);
+			return this;
+		}
 
-		void on_error(IOPoll *, const String &, const int);
+//		using ISocket::connect;
+
+		void on_error(IOLoop *, const String &, const int);
 		bool on_close(Object *);
-		bool on_delete(Object *);
+		bool on_delete(Object *parent) {
+			if (on_close(parent)) {
+				h.close();
+				// chain-up
+				return ISocket::on_delete(parent);
+			}
+			return false;
+		}
 		~InetSocket();
 	};
 	
 	class TCPSocket : public InetSocket {
 	public:;
-		void on_data(IOPoll *, const u8 *, u32, const IAddr &);
-		void on_flush(IOPoll *);
+		void on_data(IOLoop *, const u8 *, u32, const IAddr &);
+		void on_flush(IOLoop *);
 
-		int recv(IOPoll *, u8 *, uint *, String *);
-		int send(IOPoll *, const u8 *, uint *, String *);
+		int recv(IOLoop *io, u8 *packet, uint *len, String *msg) {
+			int err = h.recv(packet, len);
+			if (err == EWOULDBLOCK)
+				return 0;
+			if (!err && !*len)
+				err = ECONNRESET;
+			if (err && msg) h.errnostr(err, msg);
+			return err;
+		}
+
+		int send(IOLoop *io, const u8 *packet, uint *len, String *msg) {
+			if (!*len) {
+				io->disable_write(this);
+				return 0;
+			}
+			int err = h.send(packet, len);
+			if (err == EWOULDBLOCK) {
+				io->enable_write(this);
+				return 0;
+			}
+			if (!err && !*len)
+				err = ECONNRESET;
+			if (err && msg) h.errnostr(err, msg);
+			return err;
+		}
 	};
 	
 	class TCPServer : public InetSocket {
 		// a bit of misnomer - when we're ready to accept client
-		void on_write(IOPoll *);
+		void on_write(IOLoop *);
 	};
 
 	class UDPSocket : public InetSocket {
-		void on_data(IOPoll *, const u8 *, u32, const IAddr &);
-		int recv(IOPoll *, u8 *, uint *, String *);
-		int send(IOPoll *, const u8 *, uint *, String *);
-		int sendto(IOPoll *, const u8 *, uint *, const IAddr &, String *);
-		void on_read(IOPoll *);
+		void on_data(IOLoop *, const u8 *, u32, const IAddr &);
+		int recv(IOLoop *, u8 *, uint *, String *) = 0; // no-op
+		int send(IOLoop *io, const u8 *packet, uint *len, String *msg) {
+			int err = h.send(packet, len);
+			if (err && msg) h.errnostr(err, msg);
+			return err;
+		}
+		int sendto(IOLoop *io, const u8 *packet, uint *len, const IAddr &sa, String *msg) {
+			assert(dynamic_cast<const ISockAddr*>(&sa));
+			int err = h.sendto(packet, len, static_cast<const ISockAddr&>(sa));
+			if (err && msg) h.errnostr(err, msg);
+			return err;
+		}
+		void on_read(IOLoop *io) {
+			u8 buf[65536];
+			u32 len = sizeof(buf);
+			ISockAddr ia;
+			int err = h.recvfrom(buf, &len, &ia);
+			if (err) {
+				String msg;
+				h.errnostr(err, &msg);
+				on_error(io, msg, err);
+				return;
+			}
+			return on_data(io, buf, err, ia);
+		}
 	};
 
 	template <class Base>
@@ -161,14 +235,16 @@ namespace lev {
 		using Base::on_error;
 		using Base::on_data;
 		using Base::on_flush;
+		using Base::send;
+		using Base::recv;
 		using Base::hasflag;
 		using Base::setflag;
 		using Base::clearflag;
-		void flush(IOPoll *io) {
+		void flush(IOLoop *io) {
 			if (!output.empty())
 				on_write(io);
 		}
-		void on_read(IOPoll *io) {
+		void on_read(IOLoop *io) {
 			String s;
 			uint len;
 			if (int err = recv(io, input.tail(&len, READ_CHUNK), &len, &s))
@@ -176,7 +252,7 @@ namespace lev {
 			on_data(io, input.head(), input.bytes(), 0);
 			flush();
 		}
-		void on_write(IOPoll *io) {
+		void on_write(IOLoop *io) {
 			uint len;
 			String s;
 			bool wasempty = output.empty();
@@ -195,6 +271,9 @@ namespace lev {
 	};
 
 //	typedef LambdaHandlers<TBufferedSocket<_TCPSocket>> LTCPSocket;
+	int IOLoop::getfd(ISocket *sock) {
+		return ((InetSocket *) sock)->h.fd;
+	}
 }
 #endif
 

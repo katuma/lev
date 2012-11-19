@@ -23,6 +23,7 @@ namespace lev {
 		int connect(const ISockAddr &addr);
 		int recv(u8 *buf, u32 *len);
 		int send(const u8 *buf, u32 *len);
+		int sendto(const u8 *buf, u32 *len, const ISockAddr &);
 		void errnostr(const int, String *s);
 	};
 }

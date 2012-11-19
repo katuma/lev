@@ -6,20 +6,27 @@
 namespace lev {
 	// a posix socket address
 	class ISockAddr : public IAddr {
-	public:;
-		ISockAddr() { };
+	public:
+		ISockAddr() {
+		}
+
 		ISockAddr(const short family) {
 			sa.sa_family = family;
-		};
+		}
+
 		ISockAddr(const struct sockaddr &s) {
 			sa = s;
-		};
+		}
+
 		IAddr *clone() {
 			IAddr *ia = new ISockAddr(this->sa);
 			ia->linkto(this);
 			return ia;
-		};
-		void decode(const String &s);
+		}
+
+		void decode(const String &s) {
+		}
+
 		struct sockaddr sa;
 	};
 

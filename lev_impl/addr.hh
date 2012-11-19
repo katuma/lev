@@ -14,7 +14,9 @@ namespace lev {
 	class IAddr : public Object {
 	public:;
 		//IAddr() : Object(0) {};
-		virtual void decode(const String &s);
+		virtual void decode(const String &s) {
+			// TBD
+		}
 		// cast to covariants
 		//template <class T> operator T*() { return static_cast<T*>(this); };
 	};

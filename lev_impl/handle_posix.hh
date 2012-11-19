@@ -51,6 +51,7 @@ namespace lev {
 		// Handle r, w;
 		// r.pipe(&w)
 		int pipe(Handle *h) {
+			Handle x;
 			assert(fd<0);
 			assert(h->fd<0);
 			int f[2];
@@ -111,6 +112,16 @@ namespace lev {
 			*len = res;
 			return 0;
 		}
+
+		int sendto(const u8 *buf, u32 *len, const ISockAddr &sa) {
+			int res;
+			if ((res = ::sendto(fd, buf, *len, 0, &sa.sa, sizeof(sa))) < 0) {
+				return errno;
+			}
+			*len = res;
+			return 0;
+		}
+
 
 		int recv(u8 *buf, u32 *len) {
 			int res;

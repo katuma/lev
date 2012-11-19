@@ -35,7 +35,6 @@ namespace lev {
 	
 
 	// buffer for input and output.
-#define P static_cast<u8*>(p)
 	class Buffer : public Vector<u8> {
 		static const uint BUF_CHUNK = 4096;
 		static const uint BUF_COMPACT = 256*1024;
@@ -60,7 +59,7 @@ namespace lev {
 
 		// get a pointer to buffer head, or null if no data to consume
 		u8 *head() {
-			return P + bufhead;
+			return P() + bufhead;
 		}
 
 		u8 *head(uint *len) {
@@ -69,7 +68,7 @@ namespace lev {
 		}
 
 		u8 *tail() {
-			return P + pos;
+			return P() + pos;
 		}
 
 		u8 *tail(uint *len) {
@@ -98,7 +97,16 @@ namespace lev {
 			return false;
 		}
 
-		u8 *ensure(uint plen);
+		u8 *ensure(uint plen) {
+			// compact if the hole is gaping enough
+			if (bufhead > BUF_COMPACT)
+				compact();
+
+			if (avail() < plen)
+				_ensure(plen, 1);
+			return tail();
+		}
+
 
 		////////////////////////////////
 		// packers
@@ -189,6 +197,5 @@ namespace lev {
 		
 	};
 }
-#undef P
 
 #endif

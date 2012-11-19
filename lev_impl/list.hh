@@ -25,7 +25,7 @@ namespace lev {
 			this->prev = this->next = this;
 			return this;
 		}
-		virtual ~List();
+		virtual ~List() {};
 		// automagically cast to covariant types
 		template <typename UserType>
 		operator UserType*() {

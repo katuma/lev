@@ -10,35 +10,6 @@ namespace lev {
 	class IOLoop;
 	class ISocket;
 	
-	enum EventType {
-		FlushEvent,
-		ErrorEvent,
-	};
-
-/*
-	typedef std::function<void(ISocket *, ...)> EventCB;
-	
-	class SockEvent : public List {
-	public:;
-		SockEvent(EventType et) : List(), type(et) {};
-		EventType type;
-		EventCB *cb;
-		SockEvent *setcb(EventCB *c) {
-			cb = c;
-			return this;
-		}
-	};
-	
-	class EventDispatcher {
-	public:;
-		List handlers; // list of event handlers
-		SockEvent *add_handler(EventType et, EventCB *cb) {
-			SockEvent *e = new SockEvent(et);
-			e->linkto(&this->handlers);
-			return e->setcb(cb);
-		}
-	};*/
-
 	enum SockFlags {
 		NONE,
 		ERROR, // an error occured, other flags should be cleared
@@ -125,8 +96,7 @@ namespace lev {
 
 		ISocket *bind(IOLoop *io, IAddr *a) {
 			assert(dynamic_cast<ISockAddr*>(a));
-			ISockAddr *sa = (ISockAddr*)a;
-			if (h.bind(*sa))
+			if (h.bind(static_cast<ISockAddr*>(a)))
 				setflag(ERROR);
 			else setflag(BOUND);
 			return this;
@@ -134,8 +104,7 @@ namespace lev {
 		ISocket *connect(IOLoop *io, const IAddr &a) {
 			//assert(flags&(LISTENING|CONNECTING|CONNECTING2)==0);
 			assert(dynamic_cast<const ISockAddr*>(&a));
-			ISockAddr *sa = (ISockAddr*)&a;
-			if (h.connect(*sa)) {
+			if (h.connect(static_cast<const ISockAddr&>(a))) {
 				if (errno == EINPROGRESS) {
 					io->enable_write(this);
 					setflag(CONNECTING);
@@ -228,6 +197,7 @@ namespace lev {
 	template <class Base>
 	class Buffered : public Base {
 	public:;
+		static const int READ_CHUNK = 4096;
 		using Base::on_error;
 		using Base::on_data;
 		using Base::on_flush;
@@ -265,7 +235,6 @@ namespace lev {
 				on_flush(io);			
 		}
 	protected:;
-		static const int READ_CHUNK = 4096;
 		Buffer input;
 		Buffer output;
 	};

@@ -111,15 +111,16 @@ namespace lev {
 		////////////////////////////////
 		// packers
 		////////////////////////////////
+		// (these could really use some traits stuff at some point)
 		template <typename T>
-		Buffer& be(T &var) {
+		Buffer& be(T var) {
 			ensure(sizeof(T));
 			T val = endian(var, 0);
 			append((u8*)&val, sizeof(val));
 			return *this;
 		}
 		template <typename T>
-		Buffer& le(T &var) {
+		Buffer& le(T var) {
 			ensure(sizeof(T));
 			T val = endian(var, 1);
 			append((u8*)&val, sizeof(val));

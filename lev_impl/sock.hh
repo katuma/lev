@@ -54,6 +54,7 @@ namespace lev {
 		// event handlers. switch to virtual only if needed.
 		virtual void on_data(IOLoop *, const u8 *, u32, const IAddr &) = 0;
 		virtual void on_read(IOLoop *) = 0;
+		virtual void on_connect(IOLoop *) = 0;
 		virtual void on_write(IOLoop *) = 0;
 		virtual void on_flush(IOLoop *) = 0;
 		virtual void on_error(IOLoop *, const String &, const int) = 0;
@@ -111,6 +112,14 @@ namespace lev {
 				} else setflag(ERROR);
 			} else setflag(CONNECTED);
 			return this;
+		}
+
+		void on_write(IOLoop *io) {
+			if (hasflag(CONNECTING)) {
+				clearflag(CONNECTING);
+				setflag(CONNECTED);
+				ISocket::on_connect(io);
+			}
 		}
 
 //		using ISocket::connect;
@@ -198,6 +207,9 @@ namespace lev {
 	class Buffered : public Base {
 	public:;
 		static const int READ_CHUNK = 4096;
+		Buffer input;
+		Buffer output;
+
 		using Base::on_error;
 		using Base::on_data;
 		using Base::on_flush;
@@ -223,8 +235,7 @@ namespace lev {
 			String s;
 			bool wasempty = output.empty();
 			if (hasflag(CONNECTING)) {
-				clearflag(CONNECTING);
-				setflag(CONNECTED);
+				Base::on_write(io); // on_connect pass through ..
 				if (wasempty) return;
 			}
 			if (int err = send(io, output.head(&len), &len, &s))
@@ -234,9 +245,6 @@ namespace lev {
 			if (!wasempty && output.empty())
 				on_flush(io);			
 		}
-	protected:;
-		Buffer input;
-		Buffer output;
 	};
 
 	// hackety hack - breaks ISocket <-> IOLoop circular dependency

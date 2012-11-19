@@ -16,7 +16,11 @@ namespace lev {
 		IOLoop *disable_read(ISocket *s);
 		IOLoop *enable_write(ISocket *s);
 		IOLoop *disable_write(ISocket *s);
+		static IOLoop* factory();
 		u64 poll(int timeout);
+		void run() {
+			while (1) poll(1000);
+		}
 	};
 }
 

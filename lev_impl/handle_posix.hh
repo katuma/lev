@@ -16,32 +16,33 @@ namespace lev {
 	// doesn't hold.
 	//
 	// A fair word of warning: NEVER EVER DO "new Handle". Always
-	// use some sort of static initialization (typically class member).
+	// use some sort of direct encapsulation (typically class member).
 	struct Handle : IHandle {
 	public:;
 		int fd;
 		
-		Handle() : fd(-1) {};
-		Handle(int f) : fd(f) {};
+		inline Handle() : fd(-1) {};
+		inline Handle(int f) : fd(f) {};
+		inline Handle(Handle &oh) : fd(oh.fd) {};
 		
-		~Handle() {
-			if (fd >= 0)
-				close();
-			fd = -1;
+		inline ~Handle() {
+			close();
 		};
 		
-		int close() {
+		inline int close() {
+			if (fd < 0)
+				return 0;
 			assert(fd>=0);
 			int res = ::close(fd);
 			fd = -1;
 			return res<0?errno:0;
 		};
 		
-		int closesocket() {
+		inline int closesocket() {
 			return close();
 		};
 		
-		int socket(const int domain, const int type, const int proto) {
+		inline int socket(const int domain, const int type, const int proto) {
 			assert(fd<0);
 			fd = ::socket(domain, type, proto);
 			return fd<0?errno:0;
@@ -50,7 +51,7 @@ namespace lev {
 		// pipes are a bit obnoxious:
 		// Handle r, w;
 		// r.pipe(&w)
-		int pipe(Handle *h) {
+		inline int pipe(Handle *h) {
 			Handle x;
 			assert(fd<0);
 			assert(h->fd<0);
@@ -63,7 +64,7 @@ namespace lev {
 			return 0;
 		};
 		
-		int socketpair(Handle *h, const int d, const int t, const int p) {
+		inline int socketpair(Handle *h, const int d, const int t, const int p) {
 			assert(fd<0);
 			assert(h->fd<0);
 			int f[2];
@@ -75,20 +76,36 @@ namespace lev {
 			return 0;
 		};
 		
-		int bind(ISockAddr *sa) {
+		inline int bind(ISockAddr *sa) {
 			assert(fd>=0);
-			::bind(fd, &sa->sa, sizeof(sa->sa));
-			return fd<0?errno:0;
+			int err = ::bind(fd, &sa->sa, sizeof(sa->sa));
+			return err<0?errno:0;
 		};
 
-		int connect(const ISockAddr &sa) {
+		inline int accept(ISockAddr *sa, Handle *ret) {
+			socklen_t sz = sizeof(sa->sa);
 			assert(fd>=0);
-			::connect(fd, &sa.sa, sizeof(sa.sa));
-			return fd<0?errno:0;
+			int err = ::accept(fd, &sa->sa, &sz);
+			if (err < 0)
+				return errno;
+			ret->fd = err;
+			return 0;
 		};
 
 
-		int setblocking(const bool block) {
+		inline int listen(int n) {
+			int err = ::listen(fd, n);
+			return err<0?errno:0;
+		}
+
+		inline int connect(const ISockAddr &sa) {
+			assert(fd>=0);
+			int err = ::connect(fd, &sa.sa, sizeof(sa.sa));
+			return err<0?errno:0;
+		};
+
+
+		inline int setblocking(const bool block) {
 			assert(fd>=0);
 			int flags = ::fcntl(fd, F_GETFL, 0);
 			if (flags<0)
@@ -100,11 +117,11 @@ namespace lev {
 			return fcntl(fd, F_SETFL, flags)?errno:0;
 		};
 		
-		void errnostr(const int err, String *str) {
-			*str = ::strerror(err);
+		inline const char *errnostr(const int err) {
+			return ::strerror(err);
 		}
 		
-		int send(const u8 *buf, u32 *len) {
+		inline int send(const u8 *buf, u32 *len) {
 			int res;
 			if ((res = ::send(fd, buf, *len, 0)) < 0) {
 				return errno;
@@ -113,7 +130,7 @@ namespace lev {
 			return 0;
 		}
 
-		int sendto(const u8 *buf, u32 *len, const ISockAddr &sa) {
+		inline int sendto(const u8 *buf, u32 *len, const ISockAddr &sa) {
 			int res;
 			if ((res = ::sendto(fd, buf, *len, 0, &sa.sa, sizeof(sa))) < 0) {
 				return errno;
@@ -123,7 +140,7 @@ namespace lev {
 		}
 
 
-		int recv(u8 *buf, u32 *len) {
+		inline int recv(u8 *buf, u32 *len) {
 			int res;
 			if ((res = ::recv(fd, buf, *len, 0)) < 0) {
 				return errno;
@@ -132,7 +149,7 @@ namespace lev {
 			return 0;
 		}
 
-		int recvfrom(u8 *buf, u32 *len, ISockAddr *ia) {
+		inline int recvfrom(u8 *buf, u32 *len, ISockAddr *ia) {
 			int res;
 			socklen_t salen = sizeof(ia->sa);
 			if ((res = ::recvfrom(fd, buf, *len, 0, &ia->sa, &salen)) < 0) {
@@ -140,6 +157,10 @@ namespace lev {
 			}
 			*len = res;
 			return 0;
+		}
+
+		inline bool temperr(const int err) {
+			return (err == EAGAIN || err == EWOULDBLOCK || err == EINTR);
 		}
 	};
 }

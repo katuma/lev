@@ -5,11 +5,12 @@
 namespace lev {
 	class IOLoop;
 
-	class IIOLoop : public Object {
+	class IIOLoop {
 	protected:;
 		Handle &gethandle(ISocket *sock);
 	public:;
-		IIOLoop(Object *o) : Object(o) {};
+		IIOLoop() {};
+		/*
 		IOLoop *add(ISocket *sock);
 		IOLoop *del(ISocket *sock);
 		IOLoop *enable_read(ISocket *s);
@@ -17,9 +18,17 @@ namespace lev {
 		IOLoop *enable_write(ISocket *s);
 		IOLoop *disable_write(ISocket *s);
 		static IOLoop* factory();
-		u64 poll(int timeout);
-		void run() {
+		*/
+		virtual u64 poll(int timeout) = 0;
+		inline void run() {
 			while (1) poll(1000);
+		}
+		template <class Base>
+		inline Base *create() {
+			Base *b = new Base();
+			b->io = (IOLoop*)this; // XXX hackish cast
+			b->io->add(b);
+			return b;
 		}
 	};
 }

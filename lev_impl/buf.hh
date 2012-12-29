@@ -1,20 +1,23 @@
 #ifndef LEV_BUF_H
 #define LEV_BUF_H
 
-#include "obj.hh"
 #include "vector.hh"
 #include "str.hh"
 
 #include <memory.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 
 
 namespace lev {
 	// convert to or from endian
+	inline u8 endian(u8 w, uint endian) {
+		return w;
+	}
 	template <typename T>
-	T endian(T w, uint endian)
+	inline T endian(T w, uint endian)
 	{
 		// this gets optimized out into if (endian == host_endian) return w;
 		union { uint64_t quad; uint32_t islittle; } t;
@@ -32,7 +35,6 @@ namespace lev {
 		return r;
 	};
 
-	
 
 	// buffer for input and output.
 	class Buffer : public Vector<u8> {
@@ -42,10 +44,10 @@ namespace lev {
 		static const uint BUF_ERROR = (uint)(-1);
 	public:;
 		u32 bufhead; // read head
-		Buffer() : Vector(), bufhead(0) { };
+		inline Buffer() : Vector(), bufhead(0) { };
 
 		// throw consumed buffer head
-		uint compact() {
+		inline uint compact() {
 			memmove(p, (u8*)p + bufhead, bufhead);
 			pos -= bufhead;
 			bufhead = 0;
@@ -53,40 +55,40 @@ namespace lev {
 		}
 
 		// return how much is length for fetching
-		uint bytes() {
+		inline uint bytes() {
 			return pos - bufhead;
 		}
 
 		// get a pointer to buffer head, or null if no data to consume
-		u8 *head() {
+		inline u8 *head() {
 			return P() + bufhead;
 		}
 
-		u8 *head(uint *len) {
+		inline u8 *head(uint *len) {
 			*len = bytes();
 			return head();
 		}
 
-		u8 *tail() {
+		inline u8 *tail() {
 			return P() + pos;
 		}
 
-		u8 *tail(uint *len) {
+		inline u8 *tail(uint *len) {
 			*len = getsize() - pos;
 			return tail();
 		}
 
-		u8 *tail(uint *len, const uint en) {
+		inline u8 *tail(uint *len, const uint en) {
 			ensure(en);
 			return tail(len);
 		}
 		
-		void reset() {
+		inline void reset() {
 			pos = bufhead = 0;
 		}
 
 		// set buffer head position
-		void seek(uint pos) {
+		inline void seek(uint pos) {
 			bufhead = pos;
 		}
 
@@ -113,14 +115,14 @@ namespace lev {
 		////////////////////////////////
 		// (these could really use some traits stuff at some point)
 		template <typename T>
-		Buffer& be(T var) {
+		inline Buffer& be(T var) {
 			ensure(sizeof(T));
 			T val = endian(var, 0);
 			append((u8*)&val, sizeof(val));
 			return *this;
 		}
 		template <typename T>
-		Buffer& le(T var) {
+		inline Buffer& le(T var) {
 			ensure(sizeof(T));
 			T val = endian(var, 1);
 			append((u8*)&val, sizeof(val));
@@ -128,7 +130,7 @@ namespace lev {
 		}
 		
 		// pack asciiz
-		Buffer& str_z(String &src) {
+		inline Buffer& str_z(String &src) {
 			ensure(src.size());
 			append((u8*)src.p, src.size());
 			return *this;
@@ -139,13 +141,13 @@ namespace lev {
 		////////////////////////////////
 
 		// mark bufhead position
-		Buffer& unpack(u32 *pos) {
+		inline Buffer& unpack(u32 *pos) {
 			*pos = bufhead;
 			return *this;
 		}
 
 		// check if enough bytes, otherwise error
-		bool check(uint len) {
+		inline bool check(uint len) {
 			if (bufhead == BUF_ERROR) return false;
 			if (len > bytes()) {
 				bufhead = BUF_ERROR;
@@ -155,7 +157,7 @@ namespace lev {
 		}
 
 		template <typename T>
-		Buffer& be(T *var) {
+		inline Buffer& be(T *var) {
 			if (check(sizeof(T))) {
 				*var = endian(*((T*)head()), 0);
 				consume(sizeof(T));
@@ -163,7 +165,7 @@ namespace lev {
 			return *this;
 		}
 		template <typename T>
-		Buffer& le(T *var) {
+		inline Buffer& le(T *var) {
 			if (check(sizeof(T))) {
 				*var = endian(*((T*)head()), 1);
 				consume(sizeof(T));
@@ -172,7 +174,7 @@ namespace lev {
 		}
 
 		// unpack zero-terminated string
-		Buffer& str_z(String *str) {
+		inline Buffer& str_z(String *str) {
 			u8 *h = head();
 			uint n = bytes();
 			for (uint i = 0; i < n; i++) {
@@ -188,7 +190,7 @@ namespace lev {
 		}
 		
 		// on error, restore old buffer position
-		bool commit(u32 opos) {
+		inline bool commit(u32 opos) {
 			if (bufhead == BUF_ERROR) {
 				 bufhead = opos;
 				 return false;

@@ -17,14 +17,14 @@ namespace lev {
 		const int SELECT_CUTOFF = 16384;
 	public:;
 		u64 now;
-		IOLoop(Object *o) :
-			IIOLoop(o),
+		IOLoop() :
+			IIOLoop(),
 			dirty(false),
 			usepoll(false),
 			maxfd(0) {};
 
 		// register fd
-		IOLoop *add(ISocket *sock) {
+		inline IOLoop *add(ISocket *sock) {
 			int fd = getfd(sock);
 			assert(fd>=0);
 			if (++fd > maxfd) {
@@ -44,7 +44,7 @@ namespace lev {
 		};
 
 
-		IOLoop *del(ISocket *sock) {
+		inline IOLoop *del(ISocket *sock) {
 			//sockmap.erase(getfd(sock));
 			disable_read(sock);
 			disable_write(sock);
@@ -61,19 +61,19 @@ namespace lev {
 
 		// NOTE: these are not a single monolithic function with boolean
 		// flags because that would just trash the branch predictor.
-		IOLoop *enable_read(ISocket *s) {
+		inline IOLoop *enable_read(ISocket *s) {
 			return _enable(rset, getfd(s));
 		};
 
-		IOLoop *disable_read(ISocket *s) {
+		inline IOLoop *disable_read(ISocket *s) {
 			return _disable(rset, getfd(s));
 		};
 
-		IOLoop *enable_write(ISocket *s) {
+		inline IOLoop *enable_write(ISocket *s) {
 			return _enable(wset, getfd(s));
 		};
 
-		IOLoop *disable_write(ISocket *s) {
+		inline IOLoop *disable_write(ISocket *s) {
 			return _disable(wset, getfd(s));
 		};
 		
@@ -89,7 +89,6 @@ namespace lev {
 		bool usepoll;
 
 		int maxfd;
-		u64 pfdlast;
 
 		Vector<bool> rset, wset, rres, wres;
 		Vector<struct pollfd> pfds;
@@ -97,10 +96,10 @@ namespace lev {
 		Vector<ISocket *> sockmap;
 		Vector<uint> pfdmap;
 
-		int getfd(ISocket *sock) {
+		inline int getfd(ISocket *sock) {
 			return gethandle(sock).fd;
 		}
-		void _register_sock(ISocket *sock, struct pollfd &pfd) {
+		inline void _register_sock(ISocket *sock, struct pollfd &pfd) {
 			sockmap[getfd(sock)] = sock;
 			if (usepoll) {
 				pfdmap[getfd(sock)] = pfds.size();
@@ -108,7 +107,7 @@ namespace lev {
 			}
 		}
 
-		short _calcevents(const int fd) {
+		inline short _calcevents(const int fd) {
 			u32 events = 0;
 			if (rset[fd])
 				events = POLLIN;
@@ -117,8 +116,7 @@ namespace lev {
 			return events | POLLERR | POLLHUP;
 		};
 		
-		void _recompute_pfds() {
-			pfdlast = now;
+		inline void _recompute_pfds() {
 			pfds.clear();
 			for (int i = 0; i < maxfd; i++) {
 				short evs = _calcevents(i);
@@ -140,7 +138,7 @@ namespace lev {
 
 		// Modify requested poll type. This MUST be O(1), as it
 		// happens a lot, hence the heavy hackery.
-		IOLoop *_enable(Vector<bool> &set, const int fd) {
+		inline IOLoop *_enable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, true);
 				if (usepoll && !dirty)
@@ -149,7 +147,7 @@ namespace lev {
 			return this;
 		};
 
-		IOLoop *_disable(Vector<bool> &set, const int fd) {
+		inline IOLoop *_disable(Vector<bool> &set, const int fd) {
 			if (!set[fd]) {
 				set.setat(fd, false);
 				if (usepoll && !dirty)
@@ -158,7 +156,7 @@ namespace lev {
 			return this;
 		};
 
-		u64 _poll_poll(const int timeout) {
+		inline u64 _poll_poll(const int timeout) {
 			if (dirty)
 				_recompute_pfds();
 			int n = pfds.size();
@@ -174,7 +172,7 @@ namespace lev {
 					bool w = pfd->revents & (POLLOUT|POLLERR|POLLHUP|POLLNVAL);
 
 					if (r|w)
-						sockmap[pfd->fd]->poll(*this, r, w);
+						sockmap[pfd->fd]->poll(r, w);
 				}
 				return now;
 			}
@@ -182,7 +180,7 @@ namespace lev {
 		};
 		// poll for fds, runs callbacks, returns current timestamp.
 		// timeout is in milliseconds.
-		u64 _poll_select(const int timeout) {
+		inline u64 _poll_select(const int timeout) {
 			int res;
 			
 			struct timeval tv;
@@ -200,7 +198,7 @@ namespace lev {
 					bool w = wres[fd];
 					if (r|w) {
 						res--;
-						sockmap[fd]->poll(this, r, w);
+						sockmap[fd]->poll(r, w);
 					}
 				}
 				return now;

@@ -25,7 +25,11 @@ namespace lev {
 			this->prev = this->next = this;
 			return this;
 		}
-		virtual ~List() {};
+		// destroying the object unlinks it from the parent
+		virtual ~List() {
+			unlink();
+		}
+#if 0
 		// automagically cast to covariant types
 		template <typename UserType>
 		operator UserType*() {
@@ -37,6 +41,7 @@ namespace lev {
 		ToType* operator=(const FromType *src) {
 			return static_cast<ToType*>(src);
 		};
+#endif
 	};
 }
 

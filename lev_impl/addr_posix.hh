@@ -3,6 +3,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "types.hh"
+
 namespace lev {
 	// a posix socket address
 	class ISockAddr : public IAddr {
@@ -16,12 +18,6 @@ namespace lev {
 
 		ISockAddr(const struct sockaddr &s) {
 			sa = s;
-		}
-
-		IAddr *clone() {
-			IAddr *ia = new ISockAddr(this->sa);
-			ia->linkto(this);
-			return ia;
 		}
 
 		void decode(const String &s) {

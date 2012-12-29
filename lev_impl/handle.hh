@@ -14,7 +14,7 @@ namespace lev {
 	struct Handle;
 
 	struct IHandle {
-		int close();
+/*		int close();
 		int closesocket();
 		int socket(const int domain, const int type, const int proto);
 		int pipe(Handle *h);
@@ -24,7 +24,7 @@ namespace lev {
 		int recv(u8 *buf, u32 *len);
 		int send(const u8 *buf, u32 *len);
 		int sendto(const u8 *buf, u32 *len, const ISockAddr &);
-		void errnostr(const int, String *s);
+		void errnostr(const int, String *s);*/
 	};
 }
 

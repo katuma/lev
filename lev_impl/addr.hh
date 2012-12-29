@@ -4,14 +4,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "obj.hh"
+#include "types.hh"
 #include "buf.hh"
 
 namespace lev {
 	// Socket address handling
 
 	// An arbitrary address interface
-	class IAddr : public Object {
+	class IAddr {
 	public:;
 		//IAddr() : Object(0) {};
 		virtual void decode(const String &s) {

@@ -9,9 +9,9 @@
 
 namespace lev {
 
-	// common vector class
+	//////////////// common low-level vector class
 	class VectorBase {
-protected:;
+	protected:;
 		void _reserve(uint nsz) {
 			uint old = getsize();
 			if (old >= nsz) return;
@@ -37,7 +37,7 @@ protected:;
 			if (tomove) memset(ptr, 0, pad * sz);
 		}
 		inline VectorBase() : p(0) {};
-public:;
+	public:;
 		void *p;
 		uint pos; // in elements, not bytes
 
@@ -88,14 +88,16 @@ public:;
 			free(p);
 		}
 	};
-	
-	template <typename T, uint pad = 0>
+
+
+	/////////////////// generic vector container
+	template <typename T, uint PADDING = 0>
 	class Vector : public VectorBase {
-    private:;
+	private:;
 	protected:;
-        inline T* P() {
-            return static_cast<T*>(p);
-        }
+		inline T* P() {
+			return static_cast<T*>(p);
+		}
 
 		static const uint sz = sizeof(T);
 		static const uint factor = sz * 8;
@@ -131,7 +133,7 @@ public:;
 		// assign repeated element
 		/*Vector<T>& assign(const uint repeat, const &T val) {
 			pos = 0;
-			_insert(0, &val, repeat, sz, pad);
+                       _insert(0, &val, repeat, sz, PADDING);
 			return this;
 		}*/
 		
@@ -184,20 +186,20 @@ public:;
 		
 		// insert element at position
 		inline Vector& insert(iterator position, uint n, const T& x) {
-			_insert(position, &x, n, sz, pad);
+                       _insert(position, &x, n, sz, PADDING);
 			return *this;
 		}
 		
-		// pad
-		inline Vector<T>& addpad() {
-			memset(P() + pos, 0, pad+sz);			
+		// ensure padding value
+		inline Vector<T>& zeropad() {
+			memset(P() + pos, 0, PADDING * sz);                     
 			return *this;
 		}
 
 		// copy elements
 		inline Vector& copy(const T *src, uint len) {
 			pos = len;
-			_reserve((len+pad) * sz);
+                       _reserve((len+PADDING) * sz);
 			memcpy(p, src, len * sz);;
 			return *this;
 		}
@@ -215,15 +217,13 @@ public:;
 		// remove and return last element
 		inline T& pop_back() {
 			T &val = P()[--pos];
-			addpad();
 			return val;
 		}
 
 		// push element to the end, and return it's iterator
 		inline Vector<T>& push_back(T &val) {
-			_ensure(1 + pad, sz);
+                       _ensure(1 + PADDING, sz);
 			P()[pos++] = val;
-			addpad();
 			return *this;
 		}
 
@@ -237,12 +237,12 @@ public:;
 		inline Vector<T>& resize(uint n, T &val) {
 			if (n <= pos) {
 				pos = n;
-				addpad();
-				return;
+                               return *this;
 			}
 			uint repeat = n - pos;
 			pos = n;
-			_insert(n, &val, repeat, sz, pad);
+                       _insert(n, &val, repeat, sz, PADDING);
+                       return *this;
 		}
 		
 		// swap
@@ -257,12 +257,13 @@ public:;
 		}
 	};
 
+	///////////// bitfield vector is special
 	template<>
 	class Vector<bool> : public VectorBase {
-    private:;
-        ulong* P() {
-            return static_cast<ulong*>(p);
-        }
+	private:;
+		ulong* P() {
+			return static_cast<ulong*>(p);
+		}
 	protected:;
 		typedef ulong T;
 		static const uint sz = sizeof(T);
@@ -319,16 +320,17 @@ public:;
 
 		// XXX allocators not implemented
 
-
+		// bit blit
 		inline Vector<bool>& copy(const Vector<bool>&src) {
 			_reserve(src.getsize());
 			memcpy(p, src.p, _align(src.pos));
 			return *this;
 		}
 
+		// assignment = .copy()
 		inline const Vector<bool>& operator=(const Vector<bool>&src) {
 			copy(src);
-			return src; // what about `this`?
+			return src; // what about `this` ... would break return rhs invariant
 		}
 
 		// index element
@@ -379,7 +381,7 @@ public:;
 			return pos;
 		}
 		
-		// swap
+               // swap contents of a vector
 		inline Vector<bool>& swap(Vector<bool> &other) {
 			void *tmp = p;
 			uint tmpsize = getsize();

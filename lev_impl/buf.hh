@@ -12,10 +12,8 @@
 
 
 namespace lev {
-	// convert to or from endian
-	inline u8 endian(u8 w, uint endian) {
-		return w;
-	}
+
+	// convert value of type T according to endian (1 = big, 0 = little)
 	template <typename T>
 	inline T endian(T w, uint endian)
 	{
@@ -35,18 +33,22 @@ namespace lev {
 		return r;
 	};
 
+	// specialized for u8
+	inline u8 endian(u8 w, uint endian) {
+		return w;
+	}
 
-	// buffer for input and output.
+
+	// buffers for input and output, based on vectors
 	class Buffer : public Vector<u8> {
 	private:;
-		static const uint BUF_CHUNK = 4096;
-		static const uint BUF_COMPACT = 256*1024;
-		static const uint BUF_ERROR = (uint)(-1);
+		static const uint BUF_COMPACT = 256*1024; // compact the buffer if more than this is wasted
+		static const uint BUF_UNPACK_ERROR = (uint)(-1); // .bufhead marker denoting error during unpack
 	public:;
-		u32 bufhead; // read head
+		u32 bufhead; // buffer read head
 		inline Buffer() : Vector(), bufhead(0) { };
 
-		// throw consumed buffer head
+               // compact the unused space of .bufhead
 		inline uint compact() {
 			memmove(p, (u8*)p + bufhead, bufhead);
 			pos -= bufhead;
@@ -69,6 +71,7 @@ namespace lev {
 			return head();
 		}
 
+               // get pointer to current buffer tail, ie &buf[pos]
 		inline u8 *tail() {
 			return P() + pos;
 		}
@@ -83,22 +86,24 @@ namespace lev {
 			return tail(len);
 		}
 		
+               // reset the buffer to empty state
 		inline void reset() {
 			pos = bufhead = 0;
 		}
 
 		// set buffer head position
-		inline void seek(uint pos) {
-			bufhead = pos;
+               inline void seek(uint to) {
+                       bufhead = to;
 		}
 
-		// consume 'len'
+               // consume, len bytes will be chopped off the beggining
 		bool consume(uint len) {
 			assert(bytes() >= len);
 			bufhead += len;
 			return false;
 		}
 
+		// make sure plen can be appended to the buffer
 		u8 *ensure(uint plen) {
 			// compact if the hole is gaping enough
 			if (bufhead > BUF_COMPACT)
@@ -110,10 +115,10 @@ namespace lev {
 		}
 
 
-		////////////////////////////////
-		// packers
-		////////////////////////////////
+		////////////////// packers //////////////////
 		// (these could really use some traits stuff at some point)
+
+		// pack big-endian integer
 		template <typename T>
 		inline Buffer& be(T var) {
 			ensure(sizeof(T));
@@ -121,24 +126,46 @@ namespace lev {
 			append((u8*)&val, sizeof(val));
 			return *this;
 		}
+
+		// pack little-endian integer
 		template <typename T>
 		inline Buffer& le(T var) {
 			ensure(sizeof(T));
 			T val = endian(var, 1);
-			append((u8*)&val, sizeof(val));
-			return *this;
-		}
-		
-		// pack asciiz
-		inline Buffer& str_z(String &src) {
-			ensure(src.size());
-			append((u8*)src.p, src.size());
+                       append((u8*)&val, sizeof(val)); // sizeof sic u8 cast
 			return *this;
 		}
 
-		////////////////////////////////
-		// unpackers
-		////////////////////////////////
+		// bytes have no endian, so specialize the method name
+		inline Buffer& byte(const u8 data) {
+			return be(data);
+		}
+
+		// pack a string (no trailing \0 in the result)
+		inline Buffer& str(const char_t *src, const uint n) {
+			ensure(n);
+			append((u8*)src, n);
+			return *this;
+		}
+
+		// c-strings
+		inline Buffer& str(const char_t *src) {
+			return str(src, ::strlen(src));
+		}
+
+		// our strings
+		inline Buffer& str(String &src) {
+			return str((const char_t *)src.p, src.size());
+		}
+
+		inline Buffer& zero(const uint n) {
+			u8 zerobyte = 0;
+			ensure(n);
+			resize(pos + n, zerobyte);
+			return *this;
+		}
+
+		////////////////// unpackers //////////////////
 
 		// mark bufhead position
 		inline Buffer& unpack(u32 *pos) {
@@ -148,14 +175,15 @@ namespace lev {
 
 		// check if enough bytes, otherwise error
 		inline bool check(uint len) {
-			if (bufhead == BUF_ERROR) return false;
+                       if (bufhead == BUF_UNPACK_ERROR) return false;
 			if (len > bytes()) {
-				bufhead = BUF_ERROR;
+                               bufhead = BUF_UNPACK_ERROR;
 				return false;
 			}
 			return true;
 		}
 
+               // unpack big-endian integer
 		template <typename T>
 		inline Buffer& be(T *var) {
 			if (check(sizeof(T))) {
@@ -164,6 +192,8 @@ namespace lev {
 			}
 			return *this;
 		}
+
+               // unpack little endian integer
 		template <typename T>
 		inline Buffer& le(T *var) {
 			if (check(sizeof(T))) {
@@ -185,19 +215,28 @@ namespace lev {
 				}
 			}
 			// not enough bytes
-			bufhead = BUF_ERROR;
+			bufhead = BUF_UNPACK_ERROR;
 			return *this;
 		}
-		
+
+		// unpack specified-length string
+		inline Buffer& str(String *str, uint want) {
+			if (want < bytes()) bufhead = BUF_UNPACK_ERROR;
+			else {
+				str->copy((char_t*)head(), want);
+					consume(want);
+			}
+			return *this;
+		}
+
 		// on error, restore old buffer position
 		inline bool commit(u32 opos) {
-			if (bufhead == BUF_ERROR) {
-				 bufhead = opos;
-				 return false;
+			if (bufhead == BUF_UNPACK_ERROR) {
+				bufhead = opos;
+				return false;
 			}
 			return true;
 		}
-		
 	};
 }
 

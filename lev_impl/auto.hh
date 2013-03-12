@@ -2,12 +2,14 @@
 #define LEV_AUTO_H
 
 namespace lev {
-	// horrible lovechild of uniqptr and autoptr.
+	// horrible retarded lovechild of uniqptr and autoptr.
 	// retains semantics of neither = ease of use over correctness :/
 	template <class X>
     class Auto {
     public:
+		// contained pointer
 		X *ptr;
+
         // construct/copy/destroy
         inline explicit Auto(X* p = 0) : ptr(p) {};
 		inline Auto(Auto &p) : ptr(p.release()) {};
@@ -18,11 +20,13 @@ namespace lev {
 			reset(p.release());
 			return *this;
 		}
+
 		// assign covariant type
 		template<class Y> inline Auto& operator=(Auto<Y> &p) {
 			reset(p.release());
 			return *this;
 		}
+
 		// assign direct pointer
 		inline Auto& operator=(X *p) {
 			reset(p);
@@ -61,7 +65,7 @@ namespace lev {
 			ptr = p;
 		}
 
-		// *ugh*
+		// casts
 		inline operator X*() {
 			return ptr;
 		}
